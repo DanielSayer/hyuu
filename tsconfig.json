@@ -1,0 +1,3 @@
+{
+  "extends": "@hyuu/config/tsconfig.base.json"
+}

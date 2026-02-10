@@ -1,0 +1,37 @@
+{
+  "name": "hyuu",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "dev:server": "turbo -F server dev",
+    "db:push": "turbo -F @hyuu/db db:push",
+    "db:studio": "turbo -F @hyuu/db db:studio",
+    "db:generate": "turbo -F @hyuu/db db:generate",
+    "db:migrate": "turbo -F @hyuu/db db:migrate",
+    "db:start": "turbo -F @hyuu/db db:start",
+    "db:watch": "turbo -F @hyuu/db db:watch",
+    "db:stop": "turbo -F @hyuu/db db:stop",
+    "db:down": "turbo -F @hyuu/db db:down"
+  },
+  "dependencies": {
+    "@hyuu/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@hyuu/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "turbo": "^2.6.3",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@9.5.0"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@hyuu/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@hyuu/db": "workspace:*",
+    "@hyuu/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@hyuu/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

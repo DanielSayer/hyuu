@@ -25,6 +25,7 @@
   "dependencies": {
     "@hyuu/env": "workspace:*",
     "dotenv": "catalog:",
+    "prettier": "^3.8.1",
     "zod": "catalog:"
   },
   "devDependencies": {

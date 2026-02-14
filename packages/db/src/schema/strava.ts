@@ -8,6 +8,7 @@ export const stravaConnection = pgTable("strava_connection", {
     .primaryKey()
     .references(() => user.id, { onDelete: "cascade" }),
   stravaAthleteId: text("strava_athlete_id").notNull(),
+  athleteName: text("athlete_name"),
   authCode: text("auth_code").notNull(),
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
@@ -19,10 +20,12 @@ export const stravaConnection = pgTable("strava_connection", {
     .notNull(),
 });
 
-export const stravaConnectionRelations = relations(stravaConnection, ({ one }) => ({
-  user: one(user, {
-    fields: [stravaConnection.userId],
-    references: [user.id],
+export const stravaConnectionRelations = relations(
+  stravaConnection,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [stravaConnection.userId],
+      references: [user.id],
+    }),
   }),
-}));
-
+);

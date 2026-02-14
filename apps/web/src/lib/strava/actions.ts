@@ -1,6 +1,8 @@
 import { env } from "@hyuu/env/web";
 import {
   stravaConnectionResponseSchema,
+  stravaSyncResponseSchema,
+  stravaSyncStatusResponseSchema,
   stravaDisconnectResponseSchema,
   stravaTestResponseSchema,
 } from "./strava-response-schemas";
@@ -53,4 +55,41 @@ export async function disconnectStrava() {
   }
 
   return stravaDisconnectResponseSchema.parse(await response.json());
+}
+
+export async function getStravaSyncStatus() {
+  const response = await fetch(`${env.VITE_SERVER_URL}/api/strava/sync/status`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load Strava sync status.");
+  }
+
+  return stravaSyncStatusResponseSchema.parse(await response.json());
+}
+
+export async function syncStravaActivities() {
+  const response = await fetch(`${env.VITE_SERVER_URL}/api/strava/sync`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const fallbackMessage = "Failed to sync Strava activities.";
+    let message = fallbackMessage;
+
+    try {
+      const json = (await response.json()) as { message?: unknown };
+      if (typeof json.message === "string") {
+        message = json.message;
+      }
+    } catch {
+      // keep fallback message
+    }
+
+    throw new Error(message);
+  }
+
+  return stravaSyncResponseSchema.parse(await response.json());
 }

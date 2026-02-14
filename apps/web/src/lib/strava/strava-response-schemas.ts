@@ -27,3 +27,23 @@ export const stravaTestResponseSchema = z.object({
 export const stravaDisconnectResponseSchema = z.object({
   disconnected: z.literal(true),
 });
+
+export const stravaSyncStatusResponseSchema = z.object({
+  connected: z.boolean(),
+  canSync: z.boolean(),
+  cooldownRemainingSeconds: z.number().int().nonnegative(),
+  cooldownEndsAt: z.string().nullable(),
+  lastSuccessfulSyncAt: z.string().nullable(),
+});
+
+export const stravaSyncResponseSchema = z.object({
+  ok: z.literal(true),
+  fetchedCount: z.number().int().nonnegative(),
+  createdCount: z.number().int().nonnegative(),
+  updatedCount: z.number().int().nonnegative(),
+  tokenExpiresAt: z.string(),
+  afterTimestamp: z.string(),
+  completedAt: z.string(),
+  cooldownRemainingSeconds: z.number().int().nonnegative(),
+  cooldownEndsAt: z.string().nullable(),
+});

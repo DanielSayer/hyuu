@@ -11,7 +11,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@base-ui/react": "^1.0.0",
+    "@base-ui/react": "^1.2.0",
+    "@fontsource-variable/outfit": "^5.2.8",
     "@hookform/resolvers": "^5.1.1",
     "@hyuu/api": "workspace:*",
     "@hyuu/auth": "workspace:*",

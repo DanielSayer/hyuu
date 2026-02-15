@@ -496,6 +496,7 @@ function getCooldownState(lastSuccessfulSyncAt: Date | null) {
 }
 
 type SyncedActivityData = {
+  summary: z.infer<typeof stravaActivitySummaryListSchema>[number];
   activity: z.infer<typeof stravaDetailedActivitySchema>;
   zones: z.infer<typeof stravaActivityZonesSchema>;
 };
@@ -547,7 +548,7 @@ async function fetchAllActivityData({
     for (const summary of summaries) {
       const activity = await fetchActivityDetail(accessToken, summary.id);
       const zones = await fetchActivityZones(accessToken, summary.id);
-      allActivities.push({ activity, zones });
+      allActivities.push({ summary, activity, zones });
     }
 
     if (summaries.length < perPage) {
@@ -613,8 +614,10 @@ async function fetchActivityZones(accessToken: string, activityId: number) {
 
 async function upsertActivity(userId: string, synced: SyncedActivityData) {
   const activity = synced.activity;
-  const activityUpdatedAt = new Date(activity.updated_at);
-  const activityCreatedAt = new Date(activity.created_at);
+  const activityUpdatedAt = new Date(
+    activity.updated_at ?? synced.summary.updated_at ?? activity.start_date,
+  );
+  const activityCreatedAt = new Date(activity.created_at ?? activity.start_date);
 
   const existingActivity = await db.query.stravaActivity.findFirst({
     where: (table, { and, eq }) =>

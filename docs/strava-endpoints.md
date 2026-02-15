@@ -372,3 +372,18 @@
   }
 ]
 ```
+
+## Error
+
+```json
+{
+  "errors": [
+    {
+      "code": "string",
+      "field": "string",
+      "resource": "string"
+    }
+  ],
+  "message": "string"
+}
+```

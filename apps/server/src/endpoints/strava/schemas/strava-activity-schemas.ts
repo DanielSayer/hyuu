@@ -12,7 +12,7 @@ const stravaMapSchema = z
 export const stravaActivitySummarySchema = z
   .object({
     id: z.number().int().positive(),
-    updated_at: z.string().min(1),
+    updated_at: z.string().min(1).nullable().optional(),
   })
   .loose();
 
@@ -83,8 +83,8 @@ export const stravaDetailedActivitySchema = z
     start_latlng: z.tuple([z.number(), z.number()]).nullable().optional(),
     end_latlng: z.tuple([z.number(), z.number()]).nullable().optional(),
     map: stravaMapSchema,
-    created_at: z.string().min(1),
-    updated_at: z.string().min(1),
+    created_at: z.string().min(1).nullable().optional(),
+    updated_at: z.string().min(1).nullable().optional(),
     laps: z.array(stravaActivityLapSchema).optional().default([]),
   })
   .loose();

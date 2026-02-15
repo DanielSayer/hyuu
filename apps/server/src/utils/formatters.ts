@@ -1,6 +1,3 @@
-export function formatStravaName(
-  firstname?: string | null,
-  lastname?: string | null,
-) {
-  return [firstname, lastname].filter(Boolean).join(" ") || null;
+export function toDateOnlyString(date: Date) {
+  return date.toISOString().split("T")[0];
 }

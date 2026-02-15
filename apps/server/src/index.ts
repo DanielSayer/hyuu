@@ -7,7 +7,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
-import stravaApp from "./endpoints/strava";
+import intervalsApp from "./endpoints/intervals";
 
 export const app = new Hono();
 
@@ -34,7 +34,7 @@ app.use(
   }),
 );
 
-app.route("/api/strava", stravaApp);
+app.route("/api/intervals", intervalsApp);
 
 app.get("/", (c) => {
   return c.text("OK");

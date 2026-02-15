@@ -8,9 +8,8 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z.url(),
-    STRAVA_CLIENT_ID: z.string(),
-    STRAVA_CLIENT_SECRET: z.string(),
-    STRAVA_REFRESH_TOKEN: z.string(),
+    INTERVALS_ICU_USERNAME: z.string(),
+    INTERVALS_ICU_API_KEY: z.string(),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),

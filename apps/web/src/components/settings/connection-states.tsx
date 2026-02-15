@@ -21,34 +21,25 @@ import {
   CardTitle,
 } from "../ui/card";
 
-function StravaLogo({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
-    </svg>
-  );
-}
-
 type DisconnectedStateProps = {
   onConnect: () => void;
+  isConnecting?: boolean;
 };
 
-export function DisconnectedState({ onConnect }: DisconnectedStateProps) {
+export function DisconnectedState({
+  onConnect,
+  isConnecting = false,
+}: DisconnectedStateProps) {
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-              <StravaLogo className="h-6 w-6 text-muted-foreground" />
+              <Link2 className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
-              <CardTitle className="text-lg">Strava</CardTitle>
+              <CardTitle className="text-lg">Intervals</CardTitle>
               <CardDescription>
                 Activity tracking & workout sync
               </CardDescription>
@@ -64,16 +55,13 @@ export function DisconnectedState({ onConnect }: DisconnectedStateProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Connect your Strava account to automatically sync your runs, rides,
-          and other activities. Your workout data will be imported and kept up
-          to date.
+          Connect your Intervals account to sync your athlete profile and
+          activity data. Your existing synced data remains available if you
+          disconnect later.
         </p>
-        <Button
-          className="bg-[#FC4C02] text-white hover:bg-[#e04400]"
-          onClick={onConnect}
-        >
+        <Button onClick={onConnect} disabled={isConnecting}>
           <Link2 className="mr-2 h-4 w-4" />
-          Connect to Strava
+          {isConnecting ? "Connecting..." : "Connect to Intervals"}
         </Button>
       </CardContent>
     </Card>
@@ -84,29 +72,25 @@ type ConnectedStateProps = {
   athleteName: string;
   connectedAt: string;
   onTestConnection: () => void;
-  onDisconnect: () => void;
   isTesting: boolean;
-  isDisconnecting: boolean;
 };
 
 export function ConnectedState({
   athleteName,
   connectedAt,
   onTestConnection,
-  onDisconnect,
   isTesting,
-  isDisconnecting,
 }: ConnectedStateProps) {
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#FC4C02]/10">
-              <StravaLogo className="h-6 w-6 text-[#FC4C02]" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+              <Link2 className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-lg">Strava</CardTitle>
+              <CardTitle className="text-lg">Intervals</CardTitle>
               <CardDescription>
                 Activity tracking & workout sync
               </CardDescription>
@@ -152,50 +136,12 @@ export function ConnectedState({
             size="sm"
             nativeButton={false}
             render={
-              <a
-                href="https://www.strava.com/settings/apps"
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a href="https://intervals.icu" target="_blank" rel="noreferrer">
                 <ExternalLink className="mr-2 h-4 w-4" />
-                View on Strava
+                Open Intervals
               </a>
             }
           />
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Link2Off className="mr-2 h-4 w-4" />
-                  Disconnect
-                </Button>
-              }
-            />
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Disconnect Strava?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will remove the connection to your Strava account. Your
-                  previously synced data will remain, but no new activities will
-                  be imported.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={onDisconnect}
-                  disabled={isDisconnecting}
-                >
-                  Disconnect
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </CardContent>
     </Card>

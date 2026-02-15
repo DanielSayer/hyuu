@@ -37,7 +37,5 @@ export const INTERVALS_ENDPOINTS = {
       }).toString()}`,
     INTERVALS: (activityId: string | number) =>
       `${INTERVALS_API_BASE}/activity/${activityId}/intervals`,
-    HR_HISTOGRAM: (activityId: string | number) =>
-      `${INTERVALS_API_BASE}/activity/${activityId}/hr-histogram`,
   },
 };

@@ -1,13 +1,7 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { authClient } from "@/lib/auth-client";
-import {
-  syncIntervalsActivities,
-  type IntervalsSyncResponse,
-} from "@/lib/intervals/actions";
-import { getErrorMessage } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +10,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { authClient } from "@/lib/auth-client";
+import {
+  syncIntervalsActivities,
+  type IntervalsSyncResponse,
+} from "@/lib/intervals/actions";
+import { getErrorMessage } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard")({
   component: RouteComponent,
@@ -37,11 +37,13 @@ function RouteComponent() {
   const syncMutation = useMutation<IntervalsSyncResponse, Error>({
     mutationFn: syncIntervalsActivities,
     onSuccess: (data) => {
-      const count = data.eventCount ?? data.activities?.length ?? 0;
+      const count = data.eventCount ?? 0;
       toast.success(`Synced ${count} Intervals activities.`);
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error, "Failed to sync Intervals activities."));
+      toast.error(
+        getErrorMessage(error, "Failed to sync Intervals activities."),
+      );
     },
   });
 
@@ -54,7 +56,9 @@ function RouteComponent() {
   const renderSyncState = () => {
     if (syncMutation.isPending) {
       return (
-        <p className="text-sm text-muted-foreground">Syncing Intervals data...</p>
+        <p className="text-sm text-muted-foreground">
+          Syncing Intervals data...
+        </p>
       );
     }
 
@@ -72,9 +76,8 @@ function RouteComponent() {
     if (syncMutation.data) {
       return (
         <p className="text-sm text-muted-foreground">
-          Synced{" "}
-          {syncMutation.data.eventCount ?? syncMutation.data.activities?.length ?? 0}{" "}
-          activities for athlete {syncMutation.data.athleteId ?? "unknown"}.
+          Synced {syncMutation.data.savedActivityCount ?? 0} activities for
+          athlete {syncMutation.data.athleteId ?? "Unknown"}.
         </p>
       );
     }
@@ -105,7 +108,9 @@ function RouteComponent() {
         </CardHeader>
         <CardContent className="space-y-3">
           <Button onClick={handleSync} disabled={!canSync}>
-            {syncMutation.isPending ? "Syncing..." : "Sync Intervals Activities"}
+            {syncMutation.isPending
+              ? "Syncing..."
+              : "Sync Intervals Activities"}
           </Button>
           {renderSyncState()}
         </CardContent>

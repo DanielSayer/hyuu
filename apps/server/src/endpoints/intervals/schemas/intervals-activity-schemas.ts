@@ -43,6 +43,8 @@ export const intervalsActivityDetailSchema = z
     icu_intensity: toNumberOrNull,
     lthr: toIntOrNull,
     athlete_max_hr: toIntOrNull,
+    icu_hr_zones: z.array(z.number().int()).nullable().optional(),
+    icu_hr_zone_times: z.array(z.number().int()).nullable().optional(),
     interval_summary: z.array(z.string()).nullable().optional(),
   })
   .loose();
@@ -76,15 +78,3 @@ export const intervalsActivityIntervalsSchema = z
     icu_intervals: z.array(intervalsActivityIntervalSchema).default([]),
   })
   .loose();
-
-export const intervalsActivityHrHistogramBucketSchema = z
-  .object({
-    min: z.number().int(),
-    max: z.number().int(),
-    secs: z.number().int(),
-  })
-  .loose();
-
-export const intervalsActivityHrHistogramSchema = z.array(
-  intervalsActivityHrHistogramBucketSchema,
-);

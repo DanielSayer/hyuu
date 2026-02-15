@@ -2,10 +2,8 @@ import { getCurrentSession } from "@/utils/current-session";
 import { db } from "@hyuu/db";
 import {
   intervalsActivity,
-  intervalsActivityHrHistogram,
   intervalsActivityInterval,
   intervalsAthleteProfile,
-  intervalsAthleteSportSetting,
   intervalsSyncLog,
 } from "@hyuu/db/schema/intervals";
 import { eq } from "drizzle-orm";
@@ -17,7 +15,6 @@ import { fetchIntervalsEndpoint } from "./middleware";
 import {
   intervalsActivityDetailSchema,
   intervalsActivityEventsPayloadSchema,
-  intervalsActivityHrHistogramSchema,
   intervalsActivityIntervalsSchema,
 } from "./schemas/intervals-activity-schemas";
 import { intervalsAthleteSchema } from "./schemas/intervals-athlete-schemas";
@@ -73,7 +70,7 @@ app.post("/connections", async (c) => {
       url: INTERVALS_ENDPOINTS.ATHLETE.PROFILE(athleteId),
     });
     const athlete = intervalsAthleteSchema.parse(athletePayload);
-    const profileWrite = await upsertIntervalsAthleteData({
+    await upsertIntervalsAthleteData({
       userId: session.user.id,
       athlete,
     });
@@ -81,7 +78,6 @@ app.post("/connections", async (c) => {
     return c.json({
       ok: true,
       athleteId: athlete.id,
-      parsedSportSettingsCount: profileWrite.parsedSportSettingsCount,
       connected: true,
       connection: {
         athleteName: formatIntervalsAthleteName(athlete),
@@ -185,7 +181,7 @@ app.post("/connect", async (c) => {
       url: INTERVALS_ENDPOINTS.ATHLETE.PROFILE(athleteId),
     });
     const athlete = intervalsAthleteSchema.parse(athletePayload);
-    const profileWrite = await upsertIntervalsAthleteData({
+    await upsertIntervalsAthleteData({
       userId: session.user.id,
       athlete,
     });
@@ -193,7 +189,6 @@ app.post("/connect", async (c) => {
     return c.json({
       ok: true,
       athleteId: athlete.id,
-      parsedSportSettingsCount: profileWrite.parsedSportSettingsCount,
     });
   } catch (error) {
     const message =
@@ -297,7 +292,6 @@ app.post("/sync", async (c) => {
       activityId: string;
       detail: z.infer<typeof intervalsActivityDetailSchema>;
       intervals: z.infer<typeof intervalsActivityIntervalsSchema>;
-      hrHistogram: z.infer<typeof intervalsActivityHrHistogramSchema>;
     }> = [];
 
     for (const activityId of activityIds) {
@@ -311,20 +305,13 @@ app.post("/sync", async (c) => {
         operation: `activity.${activityId}.intervals`,
         url: INTERVALS_ENDPOINTS.ACTIVITY.INTERVALS(activityId),
       });
-      const rawHrHistogram = await fetchIntervalsEndpoint({
-        operation: `activity.${activityId}.hrHistogram`,
-        url: INTERVALS_ENDPOINTS.ACTIVITY.HR_HISTOGRAM(activityId),
-      });
       const detail = intervalsActivityDetailSchema.parse(rawDetail);
       const intervals = intervalsActivityIntervalsSchema.parse(rawIntervals);
-      const hrHistogram =
-        intervalsActivityHrHistogramSchema.parse(rawHrHistogram);
 
       activities.push({
         activityId,
         detail,
         intervals,
-        hrHistogram,
       });
     }
 
@@ -447,35 +434,8 @@ async function upsertIntervalsAthleteData({
       profileId = updated.id;
     }
 
-    await tx
-      .delete(intervalsAthleteSportSetting)
-      .where(eq(intervalsAthleteSportSetting.profileId, profileId));
-
-    if (athlete.sportSettings.length > 0) {
-      await tx.insert(intervalsAthleteSportSetting).values(
-        athlete.sportSettings.map((setting) => ({
-          profileId,
-          settingId: setting.id,
-          types: setting.types,
-          ftp: toIntOrNull(setting.ftp),
-          lthr: toIntOrNull(setting.lthr),
-          maxHr: toIntOrNull(setting.max_hr),
-          powerZones: setting.power_zones ?? null,
-          hrZones: setting.hr_zones ?? null,
-          paceUnits: setting.pace_units ?? null,
-          paceLoadType: setting.pace_load_type ?? null,
-          other: setting.other ?? null,
-          createdOnIntervalsAt: toDateOrNull(setting.created),
-          updatedOnIntervalsAt: toDateOrNull(setting.updated),
-          rawData: setting,
-          updatedAt: now,
-        })),
-      );
-    }
-
     return {
       profileId,
-      parsedSportSettingsCount: athlete.sportSettings.length,
     };
   });
 }
@@ -494,6 +454,13 @@ function toIntOrNull(value: number | null | undefined) {
 
 function toNumberOrNull(value: number | null | undefined) {
   return typeof value === "number" ? value : null;
+}
+
+function toIntArrayOrNull(value: number[] | null | undefined) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  return value.map((entry) => Math.trunc(entry));
 }
 
 function normalizeIntervalsDateParam({
@@ -554,7 +521,6 @@ async function upsertIntervalsActivities({
     activityId: string;
     detail: z.infer<typeof intervalsActivityDetailSchema>;
     intervals: z.infer<typeof intervalsActivityIntervalsSchema>;
-    hrHistogram: z.infer<typeof intervalsActivityHrHistogramSchema>;
   }>;
 }) {
   return db.transaction(async (tx) => {
@@ -604,6 +570,10 @@ async function upsertIntervalsActivities({
         intensity: toNumberOrNull(activity.detail.icu_intensity),
         lthr: toIntOrNull(activity.detail.lthr),
         athleteMaxHr: toIntOrNull(activity.detail.athlete_max_hr),
+        heartRateZonesBpm: toIntArrayOrNull(activity.detail.icu_hr_zones),
+        heartRateZoneDurationsSeconds: toIntArrayOrNull(
+          activity.detail.icu_hr_zone_times,
+        ),
         intervalSummary: activity.detail.interval_summary ?? null,
         rawData: activity.detail,
         updatedAt: now,
@@ -659,22 +629,6 @@ async function upsertIntervalsActivities({
             averageStride: toNumberOrNull(interval.average_stride),
             totalElevationGain: toNumberOrNull(interval.total_elevation_gain),
             rawData: interval,
-            updatedAt: now,
-          })),
-        );
-      }
-
-      await tx
-        .delete(intervalsActivityHrHistogram)
-        .where(eq(intervalsActivityHrHistogram.activityId, activityRowId));
-      if (activity.hrHistogram.length > 0) {
-        await tx.insert(intervalsActivityHrHistogram).values(
-          activity.hrHistogram.map((bucket) => ({
-            activityId: activityRowId,
-            bucketMin: bucket.min,
-            bucketMax: bucket.max,
-            seconds: bucket.secs,
-            rawData: bucket,
             updatedAt: now,
           })),
         );

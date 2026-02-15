@@ -2,24 +2,6 @@ import z from "zod";
 
 const toNumberOrNull = z.number().nullable().optional();
 
-export const intervalsSportSettingSchema = z
-  .object({
-    id: z.number().int(),
-    athlete_id: z.string().min(1),
-    types: z.array(z.string()).default([]),
-    ftp: toNumberOrNull,
-    lthr: toNumberOrNull,
-    max_hr: toNumberOrNull,
-    power_zones: z.array(z.number()).nullable().optional(),
-    hr_zones: z.array(z.number()).nullable().optional(),
-    pace_units: z.string().nullable().optional(),
-    pace_load_type: z.string().nullable().optional(),
-    other: z.boolean().nullable().optional(),
-    created: z.string().nullable().optional(),
-    updated: z.string().nullable().optional(),
-  })
-  .loose();
-
 export const intervalsAthleteSchema = z
   .object({
     id: z.string().min(1),
@@ -42,6 +24,5 @@ export const intervalsAthleteSchema = z
     icu_activated: z.string().nullable().optional(),
     strava_id: z.number().nullable().optional(),
     strava_authorized: z.boolean().nullable().optional(),
-    sportSettings: z.array(intervalsSportSettingSchema).default([]),
   })
   .loose();

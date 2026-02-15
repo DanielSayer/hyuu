@@ -7,10 +7,6 @@ export type IntervalsSyncResponse = {
   newest?: string;
   eventCount?: number;
   savedActivityCount?: number;
-  parsedSportSettingsCount?: number;
-  athlete?: unknown;
-  events?: unknown[];
-  activities?: unknown[];
 };
 
 export type IntervalsConnectionResponse =
@@ -30,10 +26,6 @@ export type IntervalsTestConnectionResponse = {
     id: string;
     name: string;
   };
-};
-
-export type IntervalsDisconnectResponse = {
-  disconnected: boolean;
 };
 
 export async function getIntervalsConnection() {

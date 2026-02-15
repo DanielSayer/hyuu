@@ -6,7 +6,6 @@ import {
   integer,
   jsonb,
   pgTable,
-  primaryKey,
   serial,
   text,
   timestamp,
@@ -58,41 +57,6 @@ export const intervalsAthleteProfile = pgTable(
   ],
 );
 
-export const intervalsAthleteSportSetting = pgTable(
-  "intervals_athlete_sport_setting",
-  {
-    id: serial("id").primaryKey(),
-    profileId: integer("profile_id")
-      .notNull()
-      .references(() => intervalsAthleteProfile.id, { onDelete: "cascade" }),
-    settingId: integer("setting_id").notNull(),
-    types: jsonb("types").notNull(),
-    ftp: integer("ftp"),
-    lthr: integer("lthr"),
-    maxHr: integer("max_hr"),
-    powerZones: jsonb("power_zones"),
-    hrZones: jsonb("hr_zones"),
-    paceUnits: text("pace_units"),
-    paceLoadType: text("pace_load_type"),
-    other: boolean("other"),
-    createdOnIntervalsAt: timestamp("created_on_intervals_at"),
-    updatedOnIntervalsAt: timestamp("updated_on_intervals_at"),
-    rawData: jsonb("raw_data").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
-      .defaultNow()
-      .$onUpdate(() => new Date())
-      .notNull(),
-  },
-  (table) => [
-    uniqueIndex("intervals_athlete_sport_setting_profile_setting_unique").on(
-      table.profileId,
-      table.settingId,
-    ),
-    index("intervals_athlete_sport_setting_profile_idx").on(table.profileId),
-  ],
-);
-
 export const intervalsSyncLog = pgTable(
   "intervals_sync_log",
   {
@@ -104,8 +68,7 @@ export const intervalsSyncLog = pgTable(
     status: text("status").notNull(),
     startedAt: timestamp("started_at").defaultNow().notNull(),
     completedAt: timestamp("completed_at"),
-    fetchedActivityCount: integer("fetched_activity_count").default(0).notNull(),
-    parsedSportSettingsCount: integer("parsed_sport_settings_count")
+    fetchedActivityCount: integer("fetched_activity_count")
       .default(0)
       .notNull(),
     errorMessage: text("error_message"),
@@ -150,6 +113,8 @@ export const intervalsActivity = pgTable(
     intensity: doublePrecision("intensity"),
     lthr: integer("lthr"),
     athleteMaxHr: integer("athlete_max_hr"),
+    heartRateZonesBpm: jsonb("heart_rate_zones_bpm"),
+    heartRateZoneDurationsSeconds: jsonb("heart_rate_zone_durations_seconds"),
     intervalSummary: jsonb("interval_summary"),
     rawData: jsonb("raw_data").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -211,58 +176,25 @@ export const intervalsActivityInterval = pgTable(
   ],
 );
 
-export const intervalsActivityHrHistogram = pgTable(
-  "intervals_activity_hr_histogram",
-  {
-    activityId: integer("activity_id")
-      .notNull()
-      .references(() => intervalsActivity.id, { onDelete: "cascade" }),
-    bucketMin: integer("bucket_min").notNull(),
-    bucketMax: integer("bucket_max").notNull(),
-    seconds: integer("seconds").notNull(),
-    rawData: jsonb("raw_data").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
-      .defaultNow()
-      .$onUpdate(() => new Date())
-      .notNull(),
-  },
-  (table) => [
-    primaryKey({
-      name: "intervals_activity_hr_histogram_pk",
-      columns: [table.activityId, table.bucketMin, table.bucketMax],
-    }),
-    index("intervals_activity_hr_histogram_activity_idx").on(table.activityId),
-  ],
-);
-
 export const intervalsAthleteProfileRelations = relations(
   intervalsAthleteProfile,
-  ({ one, many }) => ({
+  ({ one }) => ({
     user: one(user, {
       fields: [intervalsAthleteProfile.userId],
       references: [user.id],
     }),
-    sportSettings: many(intervalsAthleteSportSetting),
   }),
 );
 
-export const intervalsAthleteSportSettingRelations = relations(
-  intervalsAthleteSportSetting,
+export const intervalsSyncLogRelations = relations(
+  intervalsSyncLog,
   ({ one }) => ({
-    profile: one(intervalsAthleteProfile, {
-      fields: [intervalsAthleteSportSetting.profileId],
-      references: [intervalsAthleteProfile.id],
+    user: one(user, {
+      fields: [intervalsSyncLog.userId],
+      references: [user.id],
     }),
   }),
 );
-
-export const intervalsSyncLogRelations = relations(intervalsSyncLog, ({ one }) => ({
-  user: one(user, {
-    fields: [intervalsSyncLog.userId],
-    references: [user.id],
-  }),
-}));
 
 export const intervalsActivityRelations = relations(
   intervalsActivity,
@@ -272,7 +204,6 @@ export const intervalsActivityRelations = relations(
       references: [user.id],
     }),
     intervals: many(intervalsActivityInterval),
-    hrHistogram: many(intervalsActivityHrHistogram),
   }),
 );
 
@@ -281,16 +212,6 @@ export const intervalsActivityIntervalRelations = relations(
   ({ one }) => ({
     activity: one(intervalsActivity, {
       fields: [intervalsActivityInterval.activityId],
-      references: [intervalsActivity.id],
-    }),
-  }),
-);
-
-export const intervalsActivityHrHistogramRelations = relations(
-  intervalsActivityHrHistogram,
-  ({ one }) => ({
-    activity: one(intervalsActivity, {
-      fields: [intervalsActivityHrHistogram.activityId],
       references: [intervalsActivity.id],
     }),
   }),

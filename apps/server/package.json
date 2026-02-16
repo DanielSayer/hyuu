@@ -15,6 +15,7 @@
     "@hyuu/auth": "workspace:*",
     "@hyuu/db": "workspace:*",
     "@hyuu/env": "workspace:*",
+    "@hyuu/intervals-icu-integration": "workspace:*",
     "@trpc/server": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",

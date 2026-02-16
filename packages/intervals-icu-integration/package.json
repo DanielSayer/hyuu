@@ -1,0 +1,25 @@
+{
+  "name": "@hyuu/intervals-icu-integration",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "check-types": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@hyuu/db": "workspace:*",
+    "@hyuu/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@hyuu/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

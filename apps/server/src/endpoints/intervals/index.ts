@@ -23,6 +23,7 @@ import { toDateOnlyString } from "@/utils/formatters";
 const app = new Hono();
 
 const INITIAL_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 app.get("/connections", async (c) => {
   const session = await getCurrentSession(c.req.raw.headers);
@@ -75,6 +76,31 @@ app.post("/connections", async (c) => {
       athlete,
     });
 
+    const newest = normalizeIntervalsDateParam({
+      value: undefined,
+      defaultDate: new Date(),
+    });
+    const oldest = normalizeIntervalsDateParam({
+      value: undefined,
+      defaultDate: new Date(Date.now() - INITIAL_LOOKBACK_MS),
+    });
+
+    if (!newest || !oldest) {
+      return c.json(
+        {
+          message: "Failed to build initial sync date range.",
+        },
+        500,
+      );
+    }
+
+    const { eventCount, savedActivityCount } = await fetchAndUpsertActivities({
+      userId: session.user.id,
+      athleteId: athlete.id,
+      oldest,
+      newest,
+    });
+
     return c.json({
       ok: true,
       athleteId: athlete.id,
@@ -83,6 +109,8 @@ app.post("/connections", async (c) => {
         athleteName: formatIntervalsAthleteName(athlete),
         connectedAt: new Date().toISOString(),
       },
+      activitiesFetched: eventCount,
+      activitiesSaved: savedActivityCount,
     });
   } catch (error) {
     const message =
@@ -217,15 +245,8 @@ app.post("/sync", async (c) => {
     return c.json({ message: "Unauthorized" }, 401);
   }
 
-  const profile = await db.query.intervalsAthleteProfile.findFirst({
-    where: (table, { eq }) => eq(table.userId, session.user.id),
-    orderBy: (table, { desc }) => [desc(table.updatedAt)],
-    columns: {
-      intervalsAthleteId: true,
-    },
-  });
-
-  if (!profile?.intervalsAthleteId) {
+  const athleteId = await getConnectedIntervalsAthleteId(session.user.id);
+  if (!athleteId) {
     return c.json(
       {
         message:
@@ -235,14 +256,34 @@ app.post("/sync", async (c) => {
     );
   }
 
-  const athleteId = profile.intervalsAthleteId;
+  const lastSuccessfulSync = await db.query.intervalsSyncLog.findFirst({
+    where: (table, { eq, and }) =>
+      and(eq(table.userId, session.user.id), eq(table.status, "success")),
+    orderBy: (table, { desc }) => [desc(table.completedAt)],
+    columns: {
+      completedAt: true,
+      startedAt: true,
+    },
+  });
+
+  const lastSyncAt = lastSuccessfulSync?.completedAt;
+  if (!lastSyncAt) {
+    return c.json(
+      {
+        message:
+          "No previous successful sync found. Reconnect Intervals to initialize sync history.",
+      },
+      409,
+    );
+  }
+
   const newest = normalizeIntervalsDateParam({
     value: c.req.query("newest"),
     defaultDate: new Date(),
   });
   const oldest = normalizeIntervalsDateParam({
     value: c.req.query("oldest"),
-    defaultDate: new Date(Date.now() - INITIAL_LOOKBACK_MS),
+    defaultDate: new Date(lastSyncAt.getTime() - ONE_DAY_MS),
   });
 
   if (!newest || !oldest) {
@@ -274,51 +315,11 @@ app.post("/sync", async (c) => {
   }
 
   try {
-    const rawEvents = await fetchIntervalsEndpoint({
-      operation: `athlete.${athleteId}.events`,
-      url: INTERVALS_ENDPOINTS.ATHLETE.ACTIVITIES(athleteId, {
-        oldest,
-        newest,
-      }),
-    });
-
-    const parsedEventsPayload =
-      intervalsActivityEventsPayloadSchema.parse(rawEvents);
-    const events = Array.isArray(parsedEventsPayload)
-      ? parsedEventsPayload
-      : parsedEventsPayload.events;
-    const activityIds = [...new Set(events.map((event) => event.id))];
-    const activities: Array<{
-      activityId: string;
-      detail: z.infer<typeof intervalsActivityDetailSchema>;
-      intervals: z.infer<typeof intervalsActivityIntervalsSchema>;
-    }> = [];
-
-    for (const activityId of activityIds) {
-      const rawDetail = await fetchIntervalsEndpoint({
-        operation: `activity.${activityId}.detail`,
-        url: INTERVALS_ENDPOINTS.ACTIVITY.DETAIL(activityId, {
-          intervals: true,
-        }),
-      });
-      const rawIntervals = await fetchIntervalsEndpoint({
-        operation: `activity.${activityId}.intervals`,
-        url: INTERVALS_ENDPOINTS.ACTIVITY.INTERVALS(activityId),
-      });
-      const detail = intervalsActivityDetailSchema.parse(rawDetail);
-      const intervals = intervalsActivityIntervalsSchema.parse(rawIntervals);
-
-      activities.push({
-        activityId,
-        detail,
-        intervals,
-      });
-    }
-
-    const savedActivityCount = await upsertIntervalsActivities({
+    const { eventCount, savedActivityCount } = await fetchAndUpsertActivities({
       userId: session.user.id,
       athleteId,
-      activities,
+      oldest,
+      newest,
     });
 
     await db
@@ -327,7 +328,7 @@ app.post("/sync", async (c) => {
         status: "success",
         intervalsAthleteId: athleteId,
         completedAt: new Date(),
-        fetchedActivityCount: activityIds.length,
+        fetchedActivityCount: eventCount,
       })
       .where(eq(intervalsSyncLog.id, syncRow.id));
 
@@ -336,7 +337,7 @@ app.post("/sync", async (c) => {
       athleteId,
       oldest,
       newest,
-      eventCount: activityIds.length,
+      eventCount,
       savedActivityCount,
     };
     return c.json(responseBody);
@@ -363,6 +364,82 @@ app.post("/sync", async (c) => {
     return c.json({ message });
   }
 });
+
+async function getConnectedIntervalsAthleteId(userId: string) {
+  const profile = await db.query.intervalsAthleteProfile.findFirst({
+    where: (table, { eq }) => eq(table.userId, userId),
+    orderBy: (table, { desc }) => [desc(table.updatedAt)],
+    columns: {
+      intervalsAthleteId: true,
+    },
+  });
+
+  return profile?.intervalsAthleteId ?? null;
+}
+
+async function fetchAndUpsertActivities({
+  userId,
+  athleteId,
+  oldest,
+  newest,
+}: {
+  userId: string;
+  athleteId: string;
+  oldest: string;
+  newest: string;
+}) {
+  const rawEvents = await fetchIntervalsEndpoint({
+    operation: `athlete.${athleteId}.events`,
+    url: INTERVALS_ENDPOINTS.ATHLETE.ACTIVITIES(athleteId, {
+      oldest,
+      newest,
+    }),
+  });
+
+  const parsedEventsPayload =
+    intervalsActivityEventsPayloadSchema.parse(rawEvents);
+  const events = Array.isArray(parsedEventsPayload)
+    ? parsedEventsPayload
+    : parsedEventsPayload.events;
+  const activityIds = [...new Set(events.map((event) => event.id))];
+  const activities: Array<{
+    activityId: string;
+    detail: z.infer<typeof intervalsActivityDetailSchema>;
+    intervals: z.infer<typeof intervalsActivityIntervalsSchema>;
+  }> = [];
+
+  for (const activityId of activityIds) {
+    const rawDetail = await fetchIntervalsEndpoint({
+      operation: `activity.${activityId}.detail`,
+      url: INTERVALS_ENDPOINTS.ACTIVITY.DETAIL(activityId, {
+        intervals: true,
+      }),
+    });
+    const rawIntervals = await fetchIntervalsEndpoint({
+      operation: `activity.${activityId}.intervals`,
+      url: INTERVALS_ENDPOINTS.ACTIVITY.INTERVALS(activityId),
+    });
+    const detail = intervalsActivityDetailSchema.parse(rawDetail);
+    const intervals = intervalsActivityIntervalsSchema.parse(rawIntervals);
+
+    activities.push({
+      activityId,
+      detail,
+      intervals,
+    });
+  }
+
+  const savedActivityCount = await upsertIntervalsActivities({
+    userId,
+    athleteId,
+    activities,
+  });
+
+  return {
+    eventCount: activityIds.length,
+    savedActivityCount,
+  };
+}
 
 async function upsertIntervalsAthleteData({
   userId,

@@ -1,4 +1,5 @@
 import type { IntervalsAthlete } from "../../domain/models/athlete";
+import { toDateOrNull, toIntOrNull } from "../../utils";
 
 export function mapAthleteToProfileValues({
   userId,
@@ -35,16 +36,4 @@ export function mapAthleteToProfileValues({
     rawData: athlete,
     updatedAt: now,
   };
-}
-
-function toDateOrNull(value: string | null | undefined) {
-  if (typeof value !== "string" || value.length === 0) {
-    return null;
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function toIntOrNull(value: number | null | undefined) {
-  return typeof value === "number" ? Math.trunc(value) : null;
 }

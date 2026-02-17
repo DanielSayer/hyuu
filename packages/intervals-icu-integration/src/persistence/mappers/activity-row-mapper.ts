@@ -1,4 +1,10 @@
 import type { IntervalsActivityAggregate } from "../../domain/models/activity";
+import {
+  toDateOrNull,
+  toIntArrayOrNull,
+  toIntOrNull,
+  toNumberOrNull,
+} from "../../utils";
 
 export function mapActivityToActivityValues({
   userId,
@@ -81,27 +87,4 @@ export function mapActivityToIntervalRows({
     rawData: interval,
     updatedAt: now,
   }));
-}
-
-function toDateOrNull(value: string | null | undefined) {
-  if (typeof value !== "string" || value.length === 0) {
-    return null;
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function toIntOrNull(value: number | null | undefined) {
-  return typeof value === "number" ? Math.trunc(value) : null;
-}
-
-function toNumberOrNull(value: number | null | undefined) {
-  return typeof value === "number" ? value : null;
-}
-
-function toIntArrayOrNull(value: number[] | null | undefined) {
-  if (!Array.isArray(value)) {
-    return null;
-  }
-  return value.map((entry) => Math.trunc(entry));
 }

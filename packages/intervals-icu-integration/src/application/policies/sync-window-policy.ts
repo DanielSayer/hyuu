@@ -1,12 +1,15 @@
 import { InvalidDateRangeError } from "../../domain/errors/upstream-request-error";
 import type { SyncWindow } from "../../domain/models/sync-log";
+import { toDateOnlyString } from "../../utils";
 
 const INITIAL_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export function buildInitialSyncWindow(now: Date): SyncWindow {
   const newest = toDateOnlyString(now);
-  const oldest = toDateOnlyString(new Date(now.getTime() - INITIAL_LOOKBACK_MS));
+  const oldest = toDateOnlyString(
+    new Date(now.getTime() - INITIAL_LOOKBACK_MS),
+  );
   return { oldest, newest };
 }
 
@@ -59,8 +62,4 @@ function normalizeIntervalsDateParam({
   }
 
   return toDateOnlyString(parsed);
-}
-
-function toDateOnlyString(date: Date) {
-  return date.toISOString().slice(0, 10);
 }

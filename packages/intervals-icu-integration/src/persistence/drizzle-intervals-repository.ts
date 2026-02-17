@@ -1,22 +1,24 @@
-import { db as defaultDb } from "@hyuu/db";
+import { db } from "@hyuu/db";
 import {
   intervalsActivity,
   intervalsActivityInterval,
   intervalsAthleteProfile,
   intervalsSyncLog,
 } from "@hyuu/db/schema/intervals";
-import { mapActivityToActivityValues, mapActivityToIntervalRows } from "./mappers/activity-row-mapper";
-import { mapAthleteToProfileValues } from "./mappers/athlete-row-mapper";
+import { eq } from "drizzle-orm";
 import type { IntervalsRepository } from "./intervals-repository";
+import {
+  mapActivityToActivityValues,
+  mapActivityToIntervalRows,
+} from "./mappers/activity-row-mapper";
+import { mapAthleteToProfileValues } from "./mappers/athlete-row-mapper";
 
-export function createDrizzleIntervalsRepository(
-  db: any = defaultDb,
-): IntervalsRepository {
+export function createDrizzleIntervalsRepository(): IntervalsRepository {
   return {
     async getLatestConnectionProfile(userId) {
       const profile = await db.query.intervalsAthleteProfile.findFirst({
-        where: (table: any, operators: any) => operators.eq(table.userId, userId),
-        orderBy: (table: any, operators: any) => [operators.desc(table.updatedAt)],
+        where: (table, operators) => operators.eq(table.userId, userId),
+        orderBy: (table, operators) => [operators.desc(table.updatedAt)],
         columns: {
           intervalsAthleteId: true,
           name: true,
@@ -30,8 +32,8 @@ export function createDrizzleIntervalsRepository(
     },
     async getConnectedAthleteId(userId) {
       const profile = await db.query.intervalsAthleteProfile.findFirst({
-        where: (table: any, operators: any) => operators.eq(table.userId, userId),
-        orderBy: (table: any, operators: any) => [operators.desc(table.updatedAt)],
+        where: (table, operators) => operators.eq(table.userId, userId),
+        orderBy: (table, operators) => [operators.desc(table.updatedAt)],
         columns: {
           intervalsAthleteId: true,
         },
@@ -40,12 +42,12 @@ export function createDrizzleIntervalsRepository(
     },
     async getLastSuccessfulSync(userId) {
       const lastSuccessfulSync = await db.query.intervalsSyncLog.findFirst({
-        where: (table: any, operators: any) =>
+        where: (table, operators) =>
           operators.and(
             operators.eq(table.userId, userId),
             operators.eq(table.status, "success"),
           ),
-        orderBy: (table: any, operators: any) => [operators.desc(table.completedAt)],
+        orderBy: (table, operators) => [operators.desc(table.completedAt)],
         columns: {
           completedAt: true,
           startedAt: true,
@@ -79,7 +81,7 @@ export function createDrizzleIntervalsRepository(
           completedAt,
           fetchedActivityCount,
         })
-        .where((table: any, operators: any) => operators.eq(table.id, syncLogId));
+        .where(eq(intervalsSyncLog.id, syncLogId));
     },
     async completeSyncLogFailed({ syncLogId, completedAt, errorMessage }) {
       await db
@@ -89,18 +91,19 @@ export function createDrizzleIntervalsRepository(
           completedAt,
           errorMessage,
         })
-        .where((table: any, operators: any) => operators.eq(table.id, syncLogId));
+        .where(eq(intervalsSyncLog.id, syncLogId));
     },
     async upsertAthleteProfile({ userId, athlete, now }) {
-      return db.transaction(async (tx: any) => {
-        const existingProfile = await tx.query.intervalsAthleteProfile.findFirst({
-          where: (table: any, operators: any) =>
-            operators.and(
-              operators.eq(table.userId, userId),
-              operators.eq(table.intervalsAthleteId, athlete.id),
-            ),
-          columns: { id: true },
-        });
+      return db.transaction(async (tx) => {
+        const existingProfile =
+          await tx.query.intervalsAthleteProfile.findFirst({
+            where: (table, operators) =>
+              operators.and(
+                operators.eq(table.userId, userId),
+                operators.eq(table.intervalsAthleteId, athlete.id),
+              ),
+            columns: { id: true },
+          });
 
         const profileValues = mapAthleteToProfileValues({
           userId,
@@ -125,9 +128,7 @@ export function createDrizzleIntervalsRepository(
         const [updated] = await tx
           .update(intervalsAthleteProfile)
           .set(profileValues)
-          .where((table: any, operators: any) =>
-            operators.eq(table.id, existingProfile.id),
-          )
+          .where(eq(intervalsAthleteProfile.id, existingProfile.id))
           .returning({ id: intervalsAthleteProfile.id });
         if (!updated) {
           throw new Error("Failed to update Intervals athlete profile.");
@@ -136,13 +137,13 @@ export function createDrizzleIntervalsRepository(
       });
     },
     async upsertActivities({ userId, intervalsAthleteId, activities }) {
-      return db.transaction(async (tx: any) => {
+      return db.transaction(async (tx) => {
         let savedCount = 0;
 
         for (const activity of activities) {
           const now = new Date();
           const existing = await tx.query.intervalsActivity.findFirst({
-            where: (table: any, operators: any) =>
+            where: (table, operators) =>
               operators.and(
                 operators.eq(table.userId, userId),
                 operators.eq(table.intervalsActivityId, activity.activityId),
@@ -174,9 +175,7 @@ export function createDrizzleIntervalsRepository(
             const [updated] = await tx
               .update(intervalsActivity)
               .set(activityValues)
-              .where((table: any, operators: any) =>
-                operators.eq(table.id, existing.id),
-              )
+              .where(eq(intervalsActivity.id, existing.id))
               .returning({ id: intervalsActivity.id });
             if (!updated) {
               throw new Error("Failed to update Intervals activity.");
@@ -186,9 +185,7 @@ export function createDrizzleIntervalsRepository(
 
           await tx
             .delete(intervalsActivityInterval)
-            .where((table: any, operators: any) =>
-              operators.eq(table.activityId, activityRowId),
-            );
+            .where(eq(intervalsActivityInterval.activityId, activityRowId));
 
           const intervalRows = mapActivityToIntervalRows({
             activityId: activityRowId,

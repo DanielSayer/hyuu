@@ -22,3 +22,10 @@ export class SyncInitializationError extends IntervalsDomainError {
     this.name = "SyncInitializationError";
   }
 }
+
+export class SyncRateLimitError extends IntervalsDomainError {
+  constructor(message = "Please wait before syncing Intervals again.") {
+    super(message, "SYNC_RATE_LIMITED", 429);
+    this.name = "SyncRateLimitError";
+  }
+}

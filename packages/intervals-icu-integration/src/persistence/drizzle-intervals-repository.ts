@@ -55,6 +55,16 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
       });
       return lastSuccessfulSync ?? null;
     },
+    async getLatestSyncAttempt(userId) {
+      const latestSyncAttempt = await db.query.intervalsSyncLog.findFirst({
+        where: (table, operators) => operators.eq(table.userId, userId),
+        orderBy: (table, operators) => [operators.desc(table.startedAt)],
+        columns: {
+          startedAt: true,
+        },
+      });
+      return latestSyncAttempt ?? null;
+    },
     async createSyncLogStarted({ userId, intervalsAthleteId, startedAt }) {
       const [syncRow] = await db
         .insert(intervalsSyncLog)

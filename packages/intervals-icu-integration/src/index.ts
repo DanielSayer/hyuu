@@ -15,6 +15,7 @@ export { ConnectionNotFoundError, NoPreviousSyncError } from "./domain/errors/co
 export { UpstreamAuthError } from "./domain/errors/upstream-auth-error";
 export {
   InvalidDateRangeError,
+  SyncRateLimitError,
   SyncInitializationError,
   UpstreamRequestError,
 } from "./domain/errors/upstream-request-error";

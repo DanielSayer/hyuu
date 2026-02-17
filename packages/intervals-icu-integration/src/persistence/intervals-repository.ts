@@ -16,10 +16,15 @@ export type LastSuccessfulSync = {
   startedAt: Date;
 };
 
+export type LatestSyncAttempt = {
+  startedAt: Date;
+};
+
 export interface IntervalsRepository {
   getLatestConnectionProfile(userId: string): Promise<IntervalsConnectionProfile | null>;
   getConnectedAthleteId(userId: string): Promise<string | null>;
   getLastSuccessfulSync(userId: string): Promise<LastSuccessfulSync | null>;
+  getLatestSyncAttempt(userId: string): Promise<LatestSyncAttempt | null>;
   createSyncLogStarted(params: {
     userId: string;
     intervalsAthleteId: string;

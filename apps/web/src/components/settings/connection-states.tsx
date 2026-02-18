@@ -1,4 +1,4 @@
-import { formatDate } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import { ExternalLink, Link2, RefreshCw } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -103,7 +103,7 @@ export function ConnectedState({
             </div>
             <div>
               <p className="text-muted-foreground">Connected since</p>
-              <p className="font-medium">{formatDate(connectedAt)}</p>
+              <p className="font-medium">{formatDateTime(connectedAt)}</p>
             </div>
           </div>
         </div>

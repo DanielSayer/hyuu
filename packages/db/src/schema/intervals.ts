@@ -116,6 +116,7 @@ export const intervalsActivity = pgTable(
     heartRateZonesBpm: jsonb("heart_rate_zones_bpm"),
     heartRateZoneDurationsSeconds: jsonb("heart_rate_zone_durations_seconds"),
     intervalSummary: jsonb("interval_summary"),
+    mapData: jsonb("map_data"),
     rawData: jsonb("raw_data").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")

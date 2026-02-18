@@ -2,17 +2,22 @@ import { env } from "@hyuu/env/server";
 import { UpstreamAuthError } from "../domain/errors/upstream-auth-error";
 import { UpstreamRequestError } from "../domain/errors/upstream-request-error";
 import { INTERVALS_ENDPOINTS } from "./intervals-endpoints";
-import { createIntervalsRequestError, IntervalsRequestError } from "./errors/intervals-request-error";
+import {
+  createIntervalsRequestError,
+  IntervalsRequestError,
+} from "./errors/intervals-request-error";
 import { mapIntervalsAthletePayload } from "./mappers/athlete-mapper";
 import {
   mapIntervalsActivityDetail,
   mapIntervalsActivityEvents,
+  mapIntervalsActivityMap,
   mapIntervalsActivityIntervals,
 } from "./mappers/activity-mapper";
 import type { IntervalsAthlete } from "../domain/models/athlete";
 import type {
   IntervalsActivityDetail,
   IntervalsActivityEvent,
+  IntervalsActivityMap,
   IntervalsActivityIntervals,
 } from "../domain/models/activity";
 import type { SyncWindow } from "../domain/models/sync-log";
@@ -27,6 +32,7 @@ export interface IntervalsGateway {
   fetchActivityIntervals(
     activityId: string,
   ): Promise<IntervalsActivityIntervals>;
+  fetchActivityMap(activityId: string): Promise<IntervalsActivityMap>;
 }
 
 export type CreateHttpIntervalsGatewayInput = {
@@ -69,6 +75,13 @@ export function createHttpIntervalsGateway(
       });
       return mapIntervalsActivityIntervals(payload);
     },
+    async fetchActivityMap(activityId) {
+      const payload = await fetchIntervalsEndpoint(fetchImpl, {
+        operation: `activity.${activityId}.map`,
+        url: INTERVALS_ENDPOINTS.ACTIVITY.MAP(activityId),
+      });
+      return mapIntervalsActivityMap(payload);
+    },
   };
 }
 
@@ -101,7 +114,7 @@ async function fetchIntervalsEndpoint(
       payload = await response.text();
     }
 
-    console.log(`[intervals] third-party ${operation}`, payload);
+    console.log(`[intervals] third-party ${operation}: [URL] ${url}`);
     return payload;
   } catch (error) {
     throw mapUpstreamError(error);

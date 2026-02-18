@@ -51,6 +51,7 @@ export function mapActivityToActivityValues({
       activity.detail.icu_hr_zone_times,
     ),
     intervalSummary: activity.detail.interval_summary ?? null,
+    mapData: activity.map ?? null,
     rawData: activity.detail,
     updatedAt: now,
   };

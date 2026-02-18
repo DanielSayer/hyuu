@@ -20,11 +20,12 @@ export async function fetchAndUpsertActivities({
 
   const activities = [];
   for (const activityId of activityIds) {
-    const [detail, intervals] = await Promise.all([
+    const [detail, intervals, map] = await Promise.all([
       gateway.fetchActivityDetail(activityId),
       gateway.fetchActivityIntervals(activityId),
+      gateway.fetchActivityMap(activityId),
     ]);
-    activities.push({ activityId, detail, intervals });
+    activities.push({ activityId, detail, intervals, map });
   }
 
   const savedActivityCount = await repository.upsertActivities({

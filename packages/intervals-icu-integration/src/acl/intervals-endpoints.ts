@@ -2,10 +2,10 @@ const INTERVALS_API_BASE = "https://intervals.icu/api/v1";
 
 export const INTERVALS_ENDPOINTS = {
   ATHLETE: {
-    PROFILE: (athleteId: string | number) =>
+    PROFILE: (athleteId: string) =>
       `${INTERVALS_API_BASE}/athlete/${athleteId}`,
     ACTIVITIES: (
-      athleteId: string | number,
+      athleteId: string,
       {
         oldest,
         newest,
@@ -29,13 +29,15 @@ export const INTERVALS_ENDPOINTS = {
   },
   ACTIVITY: {
     DETAIL: (
-      activityId: string | number,
+      activityId: string,
       { intervals = false }: { intervals?: boolean } = {},
     ) =>
       `${INTERVALS_API_BASE}/activity/${activityId}?${new URLSearchParams({
         intervals: String(intervals),
       }).toString()}`,
-    INTERVALS: (activityId: string | number) =>
+    INTERVALS: (activityId: string) =>
       `${INTERVALS_API_BASE}/activity/${activityId}/intervals`,
+    MAP: (activityId: string) =>
+      `${INTERVALS_API_BASE}/activity/${activityId}/map`,
   },
 };

@@ -127,3 +127,20 @@
     @apply font-sans;
   }
 }
+
+@supports ((-moz-appearance: none)) {
+  .firefox-scrollbar-margin-fix {
+    --firefox-scrollbar: 10px;
+  }
+
+  html,
+  body {
+    scrollbar-gutter: stable;
+  }
+  [data-slot="alert-dialog-overlay"],
+  [data-slot="dialog-overlay"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="dialog-content"] {
+    contain: layout style;
+  }
+}

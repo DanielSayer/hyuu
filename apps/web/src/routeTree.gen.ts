@@ -14,6 +14,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as SettingsRouteRouteImport } from './routes/settings/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsConnectionsRouteImport } from './routes/settings/connections'
+import { Route as ActivityActivityIdRouteImport } from './routes/activity.$activityId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -40,12 +41,18 @@ const SettingsConnectionsRoute = SettingsConnectionsRouteImport.update({
   path: '/connections',
   getParentRoute: () => SettingsRouteRoute,
 } as any)
+const ActivityActivityIdRoute = ActivityActivityIdRouteImport.update({
+  id: '/activity/$activityId',
+  path: '/activity/$activityId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/activity/$activityId': typeof ActivityActivityIdRoute
   '/settings/connections': typeof SettingsConnectionsRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/activity/$activityId': typeof ActivityActivityIdRoute
   '/settings/connections': typeof SettingsConnectionsRoute
 }
 export interface FileRoutesById {
@@ -61,6 +69,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/activity/$activityId': typeof ActivityActivityIdRoute
   '/settings/connections': typeof SettingsConnectionsRoute
 }
 export interface FileRouteTypes {
@@ -70,15 +79,23 @@ export interface FileRouteTypes {
     | '/settings'
     | '/dashboard'
     | '/login'
+    | '/activity/$activityId'
     | '/settings/connections'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/settings' | '/dashboard' | '/login' | '/settings/connections'
+  to:
+    | '/'
+    | '/settings'
+    | '/dashboard'
+    | '/login'
+    | '/activity/$activityId'
+    | '/settings/connections'
   id:
     | '__root__'
     | '/'
     | '/settings'
     | '/dashboard'
     | '/login'
+    | '/activity/$activityId'
     | '/settings/connections'
   fileRoutesById: FileRoutesById
 }
@@ -87,6 +104,7 @@ export interface RootRouteChildren {
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  ActivityActivityIdRoute: typeof ActivityActivityIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -126,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsConnectionsRouteImport
       parentRoute: typeof SettingsRouteRoute
     }
+    '/activity/$activityId': {
+      id: '/activity/$activityId'
+      path: '/activity/$activityId'
+      fullPath: '/activity/$activityId'
+      preLoaderRoute: typeof ActivityActivityIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -146,6 +171,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  ActivityActivityIdRoute: ActivityActivityIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

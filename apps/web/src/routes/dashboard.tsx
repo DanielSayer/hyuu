@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
@@ -114,7 +114,7 @@ function RouteComponent() {
   const renderSyncState = () => {
     if (syncMutation.isPending) {
       return (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Syncing Intervals data...
         </p>
       );
@@ -122,7 +122,7 @@ function RouteComponent() {
 
     if (syncMutation.isError) {
       return (
-        <p className="text-sm text-destructive">
+        <p className="text-destructive text-sm">
           {getErrorMessage(
             syncMutation.error,
             "Failed to sync Intervals activities.",
@@ -133,7 +133,7 @@ function RouteComponent() {
 
     if (syncMutation.data) {
       return (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Synced {syncMutation.data.savedActivityCount ?? 0} activities for
           athlete {syncMutation.data.athleteId ?? "Unknown"}.
         </p>
@@ -141,7 +141,7 @@ function RouteComponent() {
     }
 
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-sm">
         Uses server-side Basic Auth credentials and stores normalized Intervals
         activity data.
       </p>
@@ -149,10 +149,10 @@ function RouteComponent() {
   };
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-4 space-y-4">
+    <div className="container mx-auto max-w-3xl space-y-4 px-4 py-4">
       <div>
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Welcome {session.data?.user.name}
         </p>
       </div>
@@ -183,22 +183,24 @@ function RouteComponent() {
         </CardHeader>
         <CardContent className="space-y-3">
           {activitiesQuery.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading activities...</p>
+            <p className="text-muted-foreground text-sm">
+              Loading activities...
+            </p>
           ) : activitiesQuery.isError ? (
-            <p className="text-sm text-destructive">
+            <p className="text-destructive text-sm">
               {getErrorMessage(
                 activitiesQuery.error,
                 "Failed to load activities.",
               )}
             </p>
           ) : activities.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               No synced activities yet.
             </p>
           ) : (
             <div
               ref={feedScrollRef}
-              className="h-[70vh] overflow-y-auto rounded-md border bg-background/30 px-2 py-2"
+              className="bg-background/30 h-[70vh] overflow-y-auto rounded-md border px-2 py-2"
             >
               <div
                 style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
@@ -215,12 +217,17 @@ function RouteComponent() {
                       key={activity.id}
                       data-index={virtualItem.index}
                       ref={rowVirtualizer.measureElement}
-                      className="absolute left-0 top-0 w-full px-1 py-1"
+                      className="absolute top-0 left-0 w-full px-1 py-1"
                       style={{
                         transform: `translateY(${virtualItem.start}px)`,
                       }}
                     >
-                      <ActivityCard activity={activity} />
+                      <Link
+                        to="/activity/$activityId"
+                        params={{ activityId: activity.id }}
+                      >
+                        <ActivityCard activity={activity} />
+                      </Link>
                     </div>
                   );
                 })}
@@ -229,13 +236,12 @@ function RouteComponent() {
           )}
 
           {activitiesQuery.isFetchingNextPage ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Loading more activities...
             </p>
           ) : null}
         </CardContent>
       </Card>
-
     </div>
   );
 }

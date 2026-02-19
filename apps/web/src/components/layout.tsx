@@ -22,6 +22,9 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "./ui/sidebar";
+import { authClient } from "@/lib/auth-client";
+import { LoadingWrapper } from "./loading-wrapper";
+import { Skeleton } from "./ui/skeleton";
 
 type AppLayoutProps = {
   children: ReactNode;
@@ -42,6 +45,8 @@ function AppLayout({ children }: AppLayoutProps) {
 }
 
 function AppSidebar() {
+  const { isPending, data: session } = authClient.useSession();
+
   return (
     <Sidebar variant="inset">
       <SidebarContent>
@@ -75,17 +80,22 @@ function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <Card>
-          <CardHeader className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-accent/60 flex size-10 items-center justify-center rounded-md">
-                <UserIcon />
+        <LoadingWrapper
+          isLoading={isPending}
+          fallback={<Skeleton className="h-18 w-full" />}
+        >
+          <Card>
+            <CardHeader className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-accent/60 flex size-10 items-center justify-center rounded-md">
+                  <UserIcon />
+                </div>
+                <CardTitle>{session?.user?.name}</CardTitle>
               </div>
-              <CardTitle>John Doe</CardTitle>
-            </div>
-            <ChevronRightIcon className="text-muted-foreground stroke-[1.5]" />
-          </CardHeader>
-        </Card>
+              <ChevronRightIcon className="text-muted-foreground stroke-[1.5]" />
+            </CardHeader>
+          </Card>
+        </LoadingWrapper>
       </SidebarFooter>
     </Sidebar>
   );

@@ -1,7 +1,15 @@
 import { db } from "@hyuu/db";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
+import {
+  activityMapDataSchema,
+  heartRateZoneDurationsSecondsSchema,
+  heartRateZonesBpmSchema,
+  intervalSummarySchema,
+} from "../schemas/activities";
+import { parseNullableJsonb, toFiniteNumber } from "../utils";
 
 const MAX_ROUTE_PREVIEW_POINTS = 120;
 
@@ -11,10 +19,6 @@ type RoutePreview = {
   bounds: [number, number, number, number] | null;
   latlngs: LatLng[];
 };
-
-function toFiniteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
 
 function toLatLngPair(value: unknown): LatLng | null {
   if (!Array.isArray(value) || value.length < 2) {
@@ -42,7 +46,9 @@ function simplifyLatLngs(points: LatLng[], maxPoints: number): LatLng[] {
   return simplified;
 }
 
-function computeBounds(points: LatLng[]): [number, number, number, number] | null {
+function computeBounds(
+  points: LatLng[],
+): [number, number, number, number] | null {
   if (points.length === 0) {
     return null;
   }
@@ -199,6 +205,113 @@ export const appRouter = router({
         id: row.id,
         routePreview: parseRoutePreview(row.mapData),
       }));
+    }),
+  activity: protectedProcedure
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const row = await db.query.intervalsActivity.findFirst({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, ctx.session.user.id),
+            operators.eq(table.id, input.id),
+          ),
+        columns: {
+          id: true,
+          userId: true,
+          intervalsAthleteId: true,
+          intervalsActivityId: true,
+          type: true,
+          name: true,
+          source: true,
+          externalId: true,
+          startDate: true,
+          startDateLocal: true,
+          analyzedAt: true,
+          syncedAt: true,
+          distance: true,
+          movingTime: true,
+          elapsedTime: true,
+          totalElevationGain: true,
+          totalElevationLoss: true,
+          averageSpeed: true,
+          maxSpeed: true,
+          averageHeartrate: true,
+          maxHeartrate: true,
+          averageCadence: true,
+          averageStride: true,
+          calories: true,
+          trainingLoad: true,
+          hrLoad: true,
+          intensity: true,
+          lthr: true,
+          athleteMaxHr: true,
+          heartRateZonesBpm: true,
+          heartRateZoneDurationsSeconds: true,
+          intervalSummary: true,
+          mapData: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        with: {
+          intervals: {
+            columns: {
+              id: true,
+              activityId: true,
+              intervalId: true,
+              intervalType: true,
+              groupId: true,
+              zone: true,
+              intensity: true,
+              distance: true,
+              movingTime: true,
+              elapsedTime: true,
+              startTime: true,
+              endTime: true,
+              averageSpeed: true,
+              maxSpeed: true,
+              averageHeartrate: true,
+              maxHeartrate: true,
+              averageCadence: true,
+              averageStride: true,
+              totalElevationGain: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            orderBy: (table, operators) => [
+              operators.asc(table.startTime),
+              operators.asc(table.id),
+            ],
+          },
+        },
+      });
+
+      if (!row) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Activity not found",
+        });
+      }
+
+      return {
+        ...row,
+        heartRateZonesBpm: parseNullableJsonb(
+          row.heartRateZonesBpm,
+          heartRateZonesBpmSchema,
+        ),
+        heartRateZoneDurationsSeconds: parseNullableJsonb(
+          row.heartRateZoneDurationsSeconds,
+          heartRateZoneDurationsSecondsSchema,
+        ),
+        intervalSummary: parseNullableJsonb(
+          row.intervalSummary,
+          intervalSummarySchema,
+        ),
+        mapData: parseNullableJsonb(row.mapData, activityMapDataSchema),
+      };
     }),
 });
 export type AppRouter = typeof appRouter;

@@ -75,7 +75,7 @@ export function RouteMap({
       >
         <MapContainer
           bounds={toLeafletBounds(bounds)}
-          className="h-full w-full overflow-hidden rounded"
+          className="h-full w-full overflow-hidden rounded-xl"
           style={{ height: "100%", width: "100%" }}
           {...(disabled ? mapDisabledProps : {})}
         >

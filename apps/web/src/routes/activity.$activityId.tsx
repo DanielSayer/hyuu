@@ -38,7 +38,7 @@ function RouteComponent() {
   );
 
   return (
-    <div className="container mx-auto max-w-5xl space-y-3 px-4 py-4">
+    <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-4">
       <LoadingWrapper isLoading={activityQuery.isLoading}>
         {activityQuery.isError ? (
           <p className="text-destructive text-sm">

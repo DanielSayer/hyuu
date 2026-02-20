@@ -6,6 +6,11 @@ import {
   toNumberOrNull,
 } from "../../utils";
 
+// Interval cadence is in steps / 30 seconds, so we need to multiply by 2 to get steps / minute.
+function transformCadence(cadence: number | null | undefined) {
+  return cadence ? cadence * 2 : null;
+}
+
 export function mapActivityToActivityValues({
   userId,
   intervalsAthleteId,
@@ -38,7 +43,7 @@ export function mapActivityToActivityValues({
     maxSpeed: toNumberOrNull(activity.detail.max_speed),
     averageHeartrate: toNumberOrNull(activity.detail.average_heartrate),
     maxHeartrate: toNumberOrNull(activity.detail.max_heartrate),
-    averageCadence: toNumberOrNull(activity.detail.average_cadence),
+    averageCadence: transformCadence(activity.detail.average_cadence),
     averageStride: toNumberOrNull(activity.detail.average_stride),
     calories: toNumberOrNull(activity.detail.calories),
     trainingLoad: toIntOrNull(activity.detail.icu_training_load),
@@ -82,7 +87,7 @@ export function mapActivityToIntervalRows({
     maxSpeed: toNumberOrNull(interval.max_speed),
     averageHeartrate: toNumberOrNull(interval.average_heartrate),
     maxHeartrate: toNumberOrNull(interval.max_heartrate),
-    averageCadence: toNumberOrNull(interval.average_cadence),
+    averageCadence: transformCadence(interval.average_cadence),
     averageStride: toNumberOrNull(interval.average_stride),
     totalElevationGain: toNumberOrNull(interval.total_elevation_gain),
     rawData: interval,

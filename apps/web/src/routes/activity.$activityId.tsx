@@ -1,5 +1,6 @@
-import { authClient } from "@/lib/auth-client";
+import { ActivityView } from "@/components/activity-view";
 import { LoadingWrapper } from "@/components/loading-wrapper";
+import { authClient } from "@/lib/auth-client";
 import { getErrorMessage } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
 import { useQuery } from "@tanstack/react-query";
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/activity/$activityId")({
     parse: (params) => activityParamsSchema.parse(params),
     stringify: ({ activityId }) => ({ activityId: String(activityId) }),
   },
-  beforeLoad: async ({ params }) => {
+  beforeLoad: async () => {
     const session = await authClient.getSession();
     if (!session.data) {
       redirect({
@@ -38,22 +39,14 @@ function RouteComponent() {
 
   return (
     <div className="container mx-auto max-w-5xl space-y-3 px-4 py-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Activity {activityId}</h1>
-      </div>
-
       <LoadingWrapper isLoading={activityQuery.isLoading}>
         {activityQuery.isError ? (
           <p className="text-destructive text-sm">
             {getErrorMessage(activityQuery.error, "Failed to load activity.")}
           </p>
         ) : activityQuery.data ? (
-          <pre className="bg-background/30 overflow-auto rounded-md border p-3 text-xs">
-            {JSON.stringify(activityQuery.data, null, 2)}
-          </pre>
-        ) : (
-          <p className="text-muted-foreground text-sm">No activity found.</p>
-        )}
+          <ActivityView activity={activityQuery.data} />
+        ) : null}
       </LoadingWrapper>
     </div>
   );

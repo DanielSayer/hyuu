@@ -3,7 +3,10 @@ import type { AppRouter } from "@hyuu/api/routers/index";
 import { env } from "@hyuu/env/web";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
-import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import {
+  createTRPCOptionsProxy,
+  type TRPCQueryOptions,
+} from "@trpc/tanstack-react-query";
 import { toast } from "sonner";
 
 export const queryClient = new QueryClient({
@@ -37,3 +40,6 @@ export const trpc = createTRPCOptionsProxy<AppRouter>({
   client: trpcClient,
   queryClient,
 });
+
+export type TRPCResult<T extends TRPCQueryOptions<any>> =
+  T extends TRPCQueryOptions<infer R> ? R["output"] : never;

@@ -21,6 +21,13 @@ function toIntArrayOrNull(value: number[] | null | undefined) {
   return value.map((entry) => Math.trunc(entry));
 }
 
+function toNumberArrayOrNull(value: number[] | null | undefined) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  return value.map((entry) => Number(entry));
+}
+
 function toDateOnlyString(date: Date) {
   return date.toISOString().slice(0, 10);
 }
@@ -30,5 +37,6 @@ export {
   toIntOrNull,
   toNumberOrNull,
   toIntArrayOrNull,
+  toNumberArrayOrNull,
   toDateOnlyString,
 };

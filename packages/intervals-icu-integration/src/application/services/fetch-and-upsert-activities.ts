@@ -2,6 +2,8 @@ import type { IntervalsGateway } from "../../acl/intervals-gateway";
 import type { IntervalsRepository } from "../../persistence/intervals-repository";
 import type { SyncWindow } from "../../domain/models/sync-log";
 
+const PREFERRED_STREAM_TYPES = ["time", "cadence", "heartrate", "distance"];
+
 export async function fetchAndUpsertActivities({
   userId,
   athleteId,
@@ -24,7 +26,15 @@ export async function fetchAndUpsertActivities({
       gateway.fetchActivityDetail(activityId),
       gateway.fetchActivityMap(activityId),
     ]);
-    activities.push({ activityId, detail, map });
+    const availableStreamTypes = new Set(detail.stream_types);
+    const requestedStreamTypes = PREFERRED_STREAM_TYPES.filter((streamType) =>
+      availableStreamTypes.has(streamType),
+    );
+    const streams =
+      requestedStreamTypes.length > 0
+        ? await gateway.fetchActivityStreams(activityId, requestedStreamTypes)
+        : [];
+    activities.push({ activityId, detail, map, streams });
   }
 
   const savedActivityCount = await repository.upsertActivities({

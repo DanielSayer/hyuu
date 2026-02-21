@@ -4,11 +4,13 @@ import type {
   IntervalsActivityDetail,
   IntervalsActivityEvent,
   IntervalsActivityMap,
+  IntervalsActivityStream,
 } from "../../domain/models/activity";
 import {
   intervalsActivityDetailSchema,
   intervalsActivityEventsPayloadSchema,
   intervalsActivityMapSchema,
+  intervalsActivityStreamsSchema,
 } from "../schemas/intervals-activity-schemas";
 
 export function mapIntervalsActivityEvents(
@@ -39,6 +41,16 @@ export function mapIntervalsActivityMap(
     return intervalsActivityMapSchema.parse(payload);
   } catch (error) {
     throw withPayloadValidationError(error, "activity map");
+  }
+}
+
+export function mapIntervalsActivityStreams(
+  payload: unknown,
+): IntervalsActivityStream[] {
+  try {
+    return intervalsActivityStreamsSchema.parse(payload);
+  } catch (error) {
+    throw withPayloadValidationError(error, "activity streams");
   }
 }
 

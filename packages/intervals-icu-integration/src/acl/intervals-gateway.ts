@@ -11,12 +11,14 @@ import {
   mapIntervalsActivityDetail,
   mapIntervalsActivityEvents,
   mapIntervalsActivityMap,
+  mapIntervalsActivityStreams,
 } from "./mappers/activity-mapper";
 import type { IntervalsAthlete } from "../domain/models/athlete";
 import type {
   IntervalsActivityDetail,
   IntervalsActivityEvent,
   IntervalsActivityMap,
+  IntervalsActivityStream,
 } from "../domain/models/activity";
 import type { SyncWindow } from "../domain/models/sync-log";
 
@@ -28,6 +30,10 @@ export interface IntervalsGateway {
   ): Promise<IntervalsActivityEvent[]>;
   fetchActivityDetail(activityId: string): Promise<IntervalsActivityDetail>;
   fetchActivityMap(activityId: string): Promise<IntervalsActivityMap>;
+  fetchActivityStreams(
+    activityId: string,
+    types: string[],
+  ): Promise<IntervalsActivityStream[]>;
 }
 
 export type CreateHttpIntervalsGatewayInput = {
@@ -67,6 +73,16 @@ export function createHttpIntervalsGateway(
         url: INTERVALS_ENDPOINTS.ACTIVITY.MAP(activityId),
       });
       return mapIntervalsActivityMap(payload);
+    },
+    async fetchActivityStreams(activityId, types) {
+      const payload = await fetchIntervalsEndpoint(fetchImpl, {
+        operation: `activity.${activityId}.streams`,
+        url: INTERVALS_ENDPOINTS.ACTIVITY.STREAMS(activityId, {
+          types,
+        }),
+      });
+      console.log("payload", payload);
+      return mapIntervalsActivityStreams(payload);
     },
   };
 }

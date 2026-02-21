@@ -32,5 +32,24 @@ export const INTERVALS_ENDPOINTS = {
       `${INTERVALS_API_BASE}/activity/${activityId}?intervals=true`,
     MAP: (activityId: string) =>
       `${INTERVALS_API_BASE}/activity/${activityId}/map`,
+    STREAMS: (
+      activityId: string,
+      {
+        types,
+        ext = ".json",
+      }: {
+        types: string[];
+        ext?: ".json" | ".csv";
+      },
+    ) => {
+      const params = new URLSearchParams();
+      for (const streamType of types) {
+        params.append("types", streamType);
+      }
+      const query = params.toString();
+      return `${INTERVALS_API_BASE}/activity/${activityId}/streams${ext}${
+        query ? `?${query}` : ""
+      }`;
+    },
   },
 };

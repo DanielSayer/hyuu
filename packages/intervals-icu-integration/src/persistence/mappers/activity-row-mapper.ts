@@ -94,3 +94,27 @@ export function mapActivityToIntervalRows({
     updatedAt: now,
   }));
 }
+
+export function mapActivityToStreamRows({
+  activityId,
+  activity,
+  now,
+}: {
+  activityId: number;
+  activity: IntervalsActivityAggregate;
+  now: Date;
+}) {
+  return activity.streams.map((stream) => ({
+    activityId,
+    streamType: stream.type,
+    name: stream.name ?? null,
+    data: stream.data,
+    data2: stream.data2 ?? null,
+    valueTypeIsArray: stream.valueTypeIsArray ?? null,
+    anomalies: stream.anomalies ?? [],
+    custom: stream.custom ?? null,
+    allNull: stream.allNull ?? null,
+    rawData: stream,
+    updatedAt: now,
+  }));
+}

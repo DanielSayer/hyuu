@@ -2,6 +2,7 @@ import { db } from "@hyuu/db";
 import {
   intervalsActivity,
   intervalsActivityInterval,
+  intervalsActivityStream,
   intervalsAthleteProfile,
   intervalsSyncLog,
 } from "@hyuu/db/schema/intervals";
@@ -10,6 +11,7 @@ import type { IntervalsRepository } from "./intervals-repository";
 import {
   mapActivityToActivityValues,
   mapActivityToIntervalRows,
+  mapActivityToStreamRows,
 } from "./mappers/activity-row-mapper";
 import { mapAthleteToProfileValues } from "./mappers/athlete-row-mapper";
 
@@ -196,6 +198,9 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
           await tx
             .delete(intervalsActivityInterval)
             .where(eq(intervalsActivityInterval.activityId, activityRowId));
+          await tx
+            .delete(intervalsActivityStream)
+            .where(eq(intervalsActivityStream.activityId, activityRowId));
 
           const intervalRows = mapActivityToIntervalRows({
             activityId: activityRowId,
@@ -205,6 +210,16 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
 
           if (intervalRows.length > 0) {
             await tx.insert(intervalsActivityInterval).values(intervalRows);
+          }
+
+          const streamRows = mapActivityToStreamRows({
+            activityId: activityRowId,
+            activity,
+            now,
+          });
+
+          if (streamRows.length > 0) {
+            await tx.insert(intervalsActivityStream).values(streamRows);
           }
 
           savedCount += 1;

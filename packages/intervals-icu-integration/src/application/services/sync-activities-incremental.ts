@@ -37,14 +37,14 @@ export async function syncActivitiesIncremental({
     );
   }
 
-  const latestSyncAttempt = await repository.getLatestSyncAttempt(userId);
-  if (latestSyncAttempt) {
-    const elapsedMs = now.getTime() - latestSyncAttempt.startedAt.getTime();
-    if (elapsedMs < SYNC_RATE_LIMIT_WINDOW_MS) {
-      const remainingMs = SYNC_RATE_LIMIT_WINDOW_MS - elapsedMs;
-      throw new SyncRateLimitError(buildRateLimitMessage(remainingMs));
-    }
-  }
+  // const latestSyncAttempt = await repository.getLatestSyncAttempt(userId);
+  // if (latestSyncAttempt) {
+  //   const elapsedMs = now.getTime() - latestSyncAttempt.startedAt.getTime();
+  //   if (elapsedMs < SYNC_RATE_LIMIT_WINDOW_MS) {
+  //     const remainingMs = SYNC_RATE_LIMIT_WINDOW_MS - elapsedMs;
+  //     throw new SyncRateLimitError(buildRateLimitMessage(remainingMs));
+  //   }
+  // }
 
   const lastSuccessfulSync = await repository.getLastSuccessfulSync(userId);
   if (!lastSuccessfulSync?.completedAt) {

@@ -65,6 +65,7 @@ export const intervalsActivityDetailSchema = z
     icu_intensity: toNumberOrNull,
     lthr: toIntOrNull,
     athlete_max_hr: toIntOrNull,
+    stream_types: z.array(z.string()).default([]),
     icu_intervals: z.array(intervalsActivityIntervalSchema).default([]),
     icu_hr_zones: z.array(z.number().int()).nullable().optional(),
     icu_hr_zone_times: z.array(z.number().int()).nullable().optional(),
@@ -140,3 +141,34 @@ export const intervalsActivityMapSchema = z
     weather: intervalsMapWeatherSchema.nullable().optional(),
   })
   .loose();
+
+const intervalsActivityStreamDataSchema = z.union([
+  z.array(z.unknown()),
+  z.record(z.string(), z.unknown()),
+]);
+
+const intervalsActivityStreamAnomalySchema = z
+  .object({
+    start_index: z.number().int(),
+    end_index: z.number().int(),
+    value: z.number(),
+    valueEnd: z.number(),
+  })
+  .loose();
+
+export const intervalsActivityStreamSchema = z
+  .object({
+    type: z.string().min(1),
+    name: z.string().nullable().optional(),
+    data: intervalsActivityStreamDataSchema,
+    data2: intervalsActivityStreamDataSchema.nullable().optional(),
+    valueTypeIsArray: z.boolean().nullable().optional(),
+    anomalies: z.array(intervalsActivityStreamAnomalySchema).nullable().optional(),
+    custom: z.boolean().nullable().optional(),
+    allNull: z.boolean().nullable().optional(),
+  })
+  .loose();
+
+export const intervalsActivityStreamsSchema = z.array(
+  intervalsActivityStreamSchema,
+);

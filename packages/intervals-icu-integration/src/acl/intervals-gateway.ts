@@ -11,14 +11,12 @@ import {
   mapIntervalsActivityDetail,
   mapIntervalsActivityEvents,
   mapIntervalsActivityMap,
-  mapIntervalsActivityIntervals,
 } from "./mappers/activity-mapper";
 import type { IntervalsAthlete } from "../domain/models/athlete";
 import type {
   IntervalsActivityDetail,
   IntervalsActivityEvent,
   IntervalsActivityMap,
-  IntervalsActivityIntervals,
 } from "../domain/models/activity";
 import type { SyncWindow } from "../domain/models/sync-log";
 
@@ -29,9 +27,6 @@ export interface IntervalsGateway {
     window: SyncWindow,
   ): Promise<IntervalsActivityEvent[]>;
   fetchActivityDetail(activityId: string): Promise<IntervalsActivityDetail>;
-  fetchActivityIntervals(
-    activityId: string,
-  ): Promise<IntervalsActivityIntervals>;
   fetchActivityMap(activityId: string): Promise<IntervalsActivityMap>;
 }
 
@@ -62,18 +57,9 @@ export function createHttpIntervalsGateway(
     async fetchActivityDetail(activityId) {
       const payload = await fetchIntervalsEndpoint(fetchImpl, {
         operation: `activity.${activityId}.detail`,
-        url: INTERVALS_ENDPOINTS.ACTIVITY.DETAIL(activityId, {
-          intervals: true,
-        }),
+        url: INTERVALS_ENDPOINTS.ACTIVITY.DETAIL(activityId),
       });
       return mapIntervalsActivityDetail(payload);
-    },
-    async fetchActivityIntervals(activityId) {
-      const payload = await fetchIntervalsEndpoint(fetchImpl, {
-        operation: `activity.${activityId}.intervals`,
-        url: INTERVALS_ENDPOINTS.ACTIVITY.INTERVALS(activityId),
-      });
-      return mapIntervalsActivityIntervals(payload);
     },
     async fetchActivityMap(activityId) {
       const payload = await fetchIntervalsEndpoint(fetchImpl, {

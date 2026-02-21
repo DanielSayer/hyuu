@@ -28,15 +28,8 @@ export const INTERVALS_ENDPOINTS = {
     },
   },
   ACTIVITY: {
-    DETAIL: (
-      activityId: string,
-      { intervals = false }: { intervals?: boolean } = {},
-    ) =>
-      `${INTERVALS_API_BASE}/activity/${activityId}?${new URLSearchParams({
-        intervals: String(intervals),
-      }).toString()}`,
-    INTERVALS: (activityId: string) =>
-      `${INTERVALS_API_BASE}/activity/${activityId}/intervals`,
+    DETAIL: (activityId: string) =>
+      `${INTERVALS_API_BASE}/activity/${activityId}?intervals=true`,
     MAP: (activityId: string) =>
       `${INTERVALS_API_BASE}/activity/${activityId}/map`,
   },

@@ -1,17 +1,15 @@
 import { ZodError } from "zod";
-import {
-  intervalsActivityDetailSchema,
-  intervalsActivityMapSchema,
-  intervalsActivityEventsPayloadSchema,
-  intervalsActivityIntervalsSchema,
-} from "../schemas/intervals-activity-schemas";
 import { UpstreamRequestError } from "../../domain/errors/upstream-request-error";
 import type {
   IntervalsActivityDetail,
   IntervalsActivityEvent,
   IntervalsActivityMap,
-  IntervalsActivityIntervals,
 } from "../../domain/models/activity";
+import {
+  intervalsActivityDetailSchema,
+  intervalsActivityEventsPayloadSchema,
+  intervalsActivityMapSchema,
+} from "../schemas/intervals-activity-schemas";
 
 export function mapIntervalsActivityEvents(
   payload: unknown,
@@ -34,17 +32,9 @@ export function mapIntervalsActivityDetail(
   }
 }
 
-export function mapIntervalsActivityIntervals(
+export function mapIntervalsActivityMap(
   payload: unknown,
-): IntervalsActivityIntervals {
-  try {
-    return intervalsActivityIntervalsSchema.parse(payload);
-  } catch (error) {
-    throw withPayloadValidationError(error, "activity intervals");
-  }
-}
-
-export function mapIntervalsActivityMap(payload: unknown): IntervalsActivityMap {
+): IntervalsActivityMap {
   try {
     return intervalsActivityMapSchema.parse(payload);
   } catch (error) {

@@ -46,15 +46,14 @@ function ActivityView({ activity }: ActivityViewProps) {
         </div>
 
         <div className="border-border bg-card flex flex-col justify-between rounded-xl border p-6">
-          <div className="space-y-6">
-            {/* Primary */}
+          <div className="my-auto space-y-6">
             <div>
               <p className="text-muted-foreground mb-1 text-xs font-medium tracking-widest uppercase">
                 Distance
               </p>
               <div className="flex items-baseline gap-2">
                 <span className="text-6xl leading-none font-black">
-                  {activity.distance ? formatDistance(activity.distance) : "—"}
+                  {formatDistance(activity.distance)}
                 </span>
                 <span className="text-muted-foreground text-xl font-medium">
                   km
@@ -68,15 +67,11 @@ function ActivityView({ activity }: ActivityViewProps) {
               items={[
                 {
                   label: "Time",
-                  value: activity.movingTime
-                    ? formatTime(activity.movingTime)
-                    : "—",
+                  value: formatTime(activity.movingTime),
                 },
                 {
                   label: "Avg Pace",
-                  value: activity.averageSpeed
-                    ? formatPace(activity.averageSpeed)
-                    : "—",
+                  value: formatPace(activity.averageSpeed),
                   sub: "/km",
                 },
                 {
@@ -165,6 +160,7 @@ function ActivityView({ activity }: ActivityViewProps) {
 
       <Separator className="mb-12" />
 
+      <h2 className="-mb-4 text-3xl font-bold tracking-tight">Splits</h2>
       <SplitsTable
         splits={activity.intervals
           .sort((a, b) => (a.startTime ?? 0) - (b.startTime ?? 0))

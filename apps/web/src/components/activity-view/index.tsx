@@ -14,9 +14,10 @@ import {
   HoverCardTrigger,
 } from "../ui/hover-card";
 import { Separator } from "../ui/separator";
+import { HrZoneChart } from "./hr-chart";
 import { RadialBarGraph } from "./radial-bar-graph";
-import { StatGroup } from "./stats-group";
 import { SplitsTable } from "./splits-table";
+import { StatGroup } from "./stats-group";
 
 type ActivityViewProps = {
   activity: Activity;
@@ -168,6 +169,13 @@ function ActivityView({ activity }: ActivityViewProps) {
             ...x,
             lapNumber: i + 1,
           }))}
+      />
+
+      <Separator className="mb-12" />
+
+      <HrZoneChart
+        hrZones={activity.heartRateZonesBpm}
+        hrZoneTimes={activity.heartRateZoneDurationsSeconds}
       />
     </div>
   );

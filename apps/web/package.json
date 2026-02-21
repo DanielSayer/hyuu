@@ -21,6 +21,7 @@
     "@tanstack/react-form": "^1.12.3",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-router": "^1.141.1",
+    "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.18",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",

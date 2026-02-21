@@ -23,7 +23,7 @@ export function formatDateTime(isoDate: string | null | undefined) {
   return dateTimeFormatter.format(date);
 }
 
-export function formatPace(speedMs: number): string {
+export function formatPace(speedMs: number | null): string {
   if (!speedMs || speedMs === 0) return "—";
   const secsPerKm = 1000 / speedMs;
   const mins = Math.floor(secsPerKm / 60);
@@ -31,7 +31,7 @@ export function formatPace(speedMs: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function formatTime(seconds: number): string {
+export function formatTime(seconds: number | null): string {
   if (!seconds) return "—";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -41,7 +41,13 @@ export function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function formatDistance(meters: number): string {
+export function formatSpeed(speedMs: number | null): string {
+  if (!speedMs || speedMs === 0) return "—";
+  return `${(speedMs * 3.6).toFixed(2)}`;
+}
+
+export function formatDistance(meters: number | null): string {
+  if (!meters || meters === 0) return "—";
   return (meters / 1000).toFixed(2);
 }
 

@@ -65,7 +65,7 @@ export const intervalsActivityDetailSchema = z
     icu_intensity: toNumberOrNull,
     lthr: toIntOrNull,
     athlete_max_hr: toIntOrNull,
-    intervals: z.array(intervalsActivityIntervalSchema).default([]),
+    icu_intervals: z.array(intervalsActivityIntervalSchema).default([]),
     icu_hr_zones: z.array(z.number().int()).nullable().optional(),
     icu_hr_zone_times: z.array(z.number().int()).nullable().optional(),
     interval_summary: z.array(z.string()).nullable().optional(),

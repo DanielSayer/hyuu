@@ -26,7 +26,7 @@ function DataTable<TData>({ table, isLoading }: DataTableProps<TData>) {
       <div className="flex justify-end">
         <ColumnVisibility table={table} />
       </div>
-      <Table className="w-full table-fixed">
+      <Table className="w-full">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>

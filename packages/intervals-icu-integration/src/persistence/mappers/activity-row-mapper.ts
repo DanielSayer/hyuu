@@ -71,7 +71,7 @@ export function mapActivityToIntervalRows({
   activity: IntervalsActivityAggregate;
   now: Date;
 }) {
-  return activity.detail.intervals.map((interval) => ({
+  return activity.detail.icu_intervals.map((interval) => ({
     activityId,
     intervalId: String(interval.id),
     intervalType: interval.type ?? null,

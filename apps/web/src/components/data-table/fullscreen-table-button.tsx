@@ -33,7 +33,7 @@ function FullscreenTableButton<TData>({
         }
       />
       <DialogContent className="w-full sm:max-w-[90vw]">
-        <DialogHeader>
+        <DialogHeader className="-mb-4">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>

@@ -26,11 +26,13 @@ type TableExpansionProps =
 
 type DataTableProps<TData> = TableExpansionProps & {
   table: ReactTable<TData>;
+  fullscreenTable?: ReactTable<TData>;
   isLoading?: boolean;
 };
 
 function DataTable<TData>({
   table,
+  fullscreenTable,
   isLoading,
   isExpandable,
   ...props
@@ -42,7 +44,7 @@ function DataTable<TData>({
       <div className="flex justify-end">
         {isExpandable && "title" in props && "description" in props && (
           <FullscreenTableButton
-            table={table}
+            table={fullscreenTable ?? table}
             title={props.title}
             description={props.description}
           />

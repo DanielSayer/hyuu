@@ -12,9 +12,15 @@ type SplitsTableProps = {
 };
 
 function SplitsTable({ splits }: SplitsTableProps) {
-  const table = useReactTable({
+  const createBaseTableOptions = () => ({
     data: splits,
     columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  const table = useReactTable({
+    ...createBaseTableOptions(),
     initialState: {
       columnVisibility: {
         movingTime: false,
@@ -23,16 +29,16 @@ function SplitsTable({ splits }: SplitsTableProps) {
         maxSpeed: false,
       },
     },
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
+  const fullscreenTable = useReactTable(createBaseTableOptions());
 
   return (
     <DataTable
       table={table}
+      fullscreenTable={fullscreenTable}
       isExpandable
       title="Splits"
-      description="Splits for the activity"
+      description="All of your detailed lap data."
     />
   );
 }

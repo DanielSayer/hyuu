@@ -6,6 +6,8 @@
 
 ## Code Quality
 
+- The `@hyuu/web` package uses vite, and should never have the `"use client"` directive
+
 ### Reusability
 
 - When writing utility functions always check for a scoped `./utils` file for existing utilities.
@@ -26,3 +28,4 @@
 ### Typescript
 
 - Never use `any` type. If you cannot determine the type, it is preferred to leave the typecheck failing than to use the `any` type to circumvent the typechecker
+

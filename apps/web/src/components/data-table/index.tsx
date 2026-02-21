@@ -12,18 +12,41 @@ import {
   TableRow,
 } from "../ui/table";
 import { ColumnVisibility } from "./column-visibility";
+import { FullscreenTableButton } from "./fullscreen-table-button";
 
-type DataTableProps<TData> = {
+type TableExpansionProps =
+  | {
+      isExpandable: true;
+      title: string;
+      description: string;
+    }
+  | {
+      isExpandable?: false;
+    };
+
+type DataTableProps<TData> = TableExpansionProps & {
   table: ReactTable<TData>;
   isLoading?: boolean;
 };
 
-function DataTable<TData>({ table, isLoading }: DataTableProps<TData>) {
+function DataTable<TData>({
+  table,
+  isLoading,
+  isExpandable,
+  ...props
+}: DataTableProps<TData>) {
   const numberOfColumns = table.getAllColumns().length;
 
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex justify-end">
+        {isExpandable && "title" in props && "description" in props && (
+          <FullscreenTableButton
+            table={table}
+            title={props.title}
+            description={props.description}
+          />
+        )}
         <ColumnVisibility table={table} />
       </div>
       <Table className="w-full">

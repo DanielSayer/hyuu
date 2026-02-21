@@ -27,7 +27,14 @@ function SplitsTable({ splits }: SplitsTableProps) {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  return <DataTable table={table} />;
+  return (
+    <DataTable
+      table={table}
+      isExpandable
+      title="Splits"
+      description="Splits for the activity"
+    />
+  );
 }
 
 export { SplitsTable };

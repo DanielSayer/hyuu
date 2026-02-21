@@ -92,7 +92,7 @@ export function RouteMap({
         </MapContainer>
 
         {showLayerToggle && (
-          <div className="absolute top-2 right-2 z-1000">
+          <div className="absolute top-2 right-2">
             <MapLayerPicker
               layerMode={layerMode ?? "standard"}
               setLayerMode={setLayerMode}

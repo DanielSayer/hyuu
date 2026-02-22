@@ -5,6 +5,7 @@ import type { SyncWindow } from "../../domain/models/sync-log";
 const PREFERRED_STREAM_TYPES = [
   "cadence",
   "heartrate",
+  "distance",
   "velocity_smooth",
   "fixed_altitude",
 ];

@@ -1,56 +1,46 @@
 import { formatTime } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
-import {
-  ClockIcon,
-  FootprintsIcon,
-  TimerIcon,
-  HeartPulseIcon,
-} from "lucide-react";
+import { MountainIcon, TimerIcon } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
   type ChartConfig,
 } from "../ui/chart";
 
-type HrPoint = {
+type AltitudePoint = {
   second: number;
-  heartrate: number;
+  altitude: number;
 };
 
 const chartConfig = {
-  heartrate: {
-    label: "Heart Rate",
-    color: "var(--chart-1)",
+  altitude: {
+    label: "Altitude",
+    color: "var(--chart-4)",
   },
 } satisfies ChartConfig;
 
-function HrChart({ activity }: { activity: Activity }) {
-  const hrData = activity.streams.find(
-    (stream) => stream.streamType === "heartrate",
+function AltitudeChart({ activity }: { activity: Activity }) {
+  const altitudeStream = activity.streams.find(
+    (stream) => stream.streamType === "fixed_altitude",
   );
 
-  if (!hrData) {
+  if (
+    !altitudeStream ||
+    !altitudeStream.data ||
+    !Array.isArray(altitudeStream.data)
+  ) {
     return null;
   }
 
-  if (!hrData.data || !Array.isArray(hrData.data)) {
-    return null;
-  }
-
-  const chartData = hrData.data
+  const chartData: AltitudePoint[] = altitudeStream.data
     .map((value, index) => {
       if (typeof value !== "number" || !Number.isFinite(value)) {
         return null;
       }
-
-      return {
-        second: index,
-        heartrate: value,
-      } satisfies HrPoint;
+      return { second: index, altitude: value };
     })
-    .filter((point): point is HrPoint => point !== null);
+    .filter((point): point is AltitudePoint => point !== null);
 
   if (chartData.length === 0) {
     return null;
@@ -58,7 +48,7 @@ function HrChart({ activity }: { activity: Activity }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-3xl font-bold tracking-tight">Heart Rate</h2>
+      <h2 className="text-3xl font-bold tracking-tight">Elevation</h2>
 
       <ChartContainer config={chartConfig} className="h-[25vh] w-full">
         <AreaChart
@@ -67,15 +57,15 @@ function HrChart({ activity }: { activity: Activity }) {
           margin={{ left: 8, right: 8 }}
         >
           <defs>
-            <linearGradient id="fillHeartrate" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="fillAltitude" x1="0" y1="0" x2="0" y2="1">
               <stop
                 offset="5%"
-                stopColor="var(--color-heartrate)"
+                stopColor="var(--color-altitude)"
                 stopOpacity={0.8}
               />
               <stop
                 offset="95%"
-                stopColor="var(--color-heartrate)"
+                stopColor="var(--color-altitude)"
                 stopOpacity={0.1}
               />
             </linearGradient>
@@ -90,20 +80,14 @@ function HrChart({ activity }: { activity: Activity }) {
             minTickGap={30}
             tickFormatter={(value) => formatTime(Number(value))}
           />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            width={40}
-            domain={([dataMin, dataMax]) => [dataMin - 10, dataMax + 5]}
-          />
-          <ChartTooltip cursor={false} content={<HeartrateTooltip />} />
+          <YAxis tickLine={false} axisLine={false} tickMargin={8} width={48} />
+          <ChartTooltip cursor={false} content={<AltitudeTooltip />} />
 
           <Area
-            dataKey="heartrate"
+            dataKey="altitude"
             type="natural"
-            stroke="var(--color-heartrate)"
-            fill="url(#fillHeartrate)"
+            stroke="var(--color-altitude)"
+            fill="url(#fillAltitude)"
             fillOpacity={0.4}
             strokeWidth={2}
           />
@@ -113,23 +97,23 @@ function HrChart({ activity }: { activity: Activity }) {
   );
 }
 
-function HeartrateTooltip({
+function AltitudeTooltip({
   active,
   payload,
 }: {
   active?: boolean;
-  payload?: { value: number; payload: HrPoint }[];
+  payload?: { value: number; payload: AltitudePoint }[];
 }) {
   if (!active || !payload?.length) return null;
 
-  const { heartrate, second } = payload[0].payload;
+  const { altitude, second } = payload[0].payload;
 
   return (
     <div className="border-border bg-background rounded-lg border px-3 py-2 shadow-md">
-      <p className="text-sm font-medium">Cadence</p>
+      <p className="text-sm font-medium">Elevation</p>
       <div className="text-muted-foreground mt-1 flex flex-col gap-0.5 text-sm">
         <span className="flex items-center gap-1.5">
-          <HeartPulseIcon className="size-3.5" /> {heartrate} bpm
+          <MountainIcon className="size-3.5" /> {Math.round(altitude)} m
         </span>
         <span className="flex items-center gap-1.5">
           <TimerIcon className="size-3.5" /> {formatTime(second)}
@@ -139,4 +123,4 @@ function HeartrateTooltip({
   );
 }
 
-export { HrChart };
+export { AltitudeChart };

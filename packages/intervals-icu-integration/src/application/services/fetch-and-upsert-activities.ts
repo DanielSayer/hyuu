@@ -2,7 +2,12 @@ import type { IntervalsGateway } from "../../acl/intervals-gateway";
 import type { IntervalsRepository } from "../../persistence/intervals-repository";
 import type { SyncWindow } from "../../domain/models/sync-log";
 
-const PREFERRED_STREAM_TYPES = ["time", "cadence", "heartrate", "distance"];
+const PREFERRED_STREAM_TYPES = [
+  "cadence",
+  "heartrate",
+  "velocity_smooth",
+  "fixed_altitude",
+];
 
 export async function fetchAndUpsertActivities({
   userId,

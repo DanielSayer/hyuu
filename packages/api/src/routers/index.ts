@@ -5,6 +5,9 @@ import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "../index";
 import {
   activityMapDataSchema,
+  activityStreamAnomaliesSchema,
+  activityStreamData2Schema,
+  activityStreamDataSchema,
   heartRateZoneDurationsSecondsSchema,
   heartRateZonesBpmSchema,
   intervalSummarySchema,
@@ -28,7 +31,7 @@ export const appRouter = router({
         cursor: z
           .object({
             id: z.number().int().positive(),
-            startDate: z.string().datetime(),
+            startDate: z.iso.datetime(),
           })
           .optional(),
       }),
@@ -173,6 +176,26 @@ export const appRouter = router({
               operators.asc(table.id),
             ],
           },
+          streams: {
+            columns: {
+              id: true,
+              activityId: true,
+              streamType: true,
+              name: true,
+              data: true,
+              data2: true,
+              valueTypeIsArray: true,
+              anomalies: true,
+              custom: true,
+              allNull: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            orderBy: (table, operators) => [
+              operators.asc(table.streamType),
+              operators.asc(table.id),
+            ],
+          },
         },
       });
 
@@ -185,6 +208,16 @@ export const appRouter = router({
 
       return {
         ...row,
+        streams: row.streams.map((stream) => ({
+          ...stream,
+          data: parseNullableJsonb(stream.data, activityStreamDataSchema) ?? [],
+          data2: parseNullableJsonb(stream.data2, activityStreamData2Schema),
+          anomalies:
+            parseNullableJsonb(
+              stream.anomalies,
+              activityStreamAnomaliesSchema,
+            ) ?? [],
+        })),
         heartRateZonesBpm: parseNullableJsonb(
           row.heartRateZonesBpm,
           heartRateZonesBpmSchema,

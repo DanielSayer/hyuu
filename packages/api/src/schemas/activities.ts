@@ -4,6 +4,25 @@ export const heartRateZonesBpmSchema = z.array(z.number().int());
 export const heartRateZoneDurationsSecondsSchema = z.array(z.number().int());
 export const intervalSummarySchema = z.array(z.string());
 
+export const activityStreamDataSchema = z.union([
+  z.array(z.unknown()),
+  z.record(z.string(), z.unknown()),
+]);
+
+const activityStreamAnomalySchema = z
+  .object({
+    start_index: z.number().int(),
+    end_index: z.number().int(),
+    value: z.number(),
+    valueEnd: z.number(),
+  })
+  .loose();
+
+export const activityStreamAnomaliesSchema = z.array(
+  activityStreamAnomalySchema,
+);
+export const activityStreamData2Schema = activityStreamDataSchema.nullable();
+
 const mapLatLngSchema = z.array(z.number());
 
 const mapRouteSchema = z

@@ -81,7 +81,6 @@ export function createHttpIntervalsGateway(
           types,
         }),
       });
-      console.log("payload", payload);
       return mapIntervalsActivityStreams(payload);
     },
   };

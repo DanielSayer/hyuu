@@ -14,10 +14,14 @@ import {
   HoverCardTrigger,
 } from "../ui/hover-card";
 import { Separator } from "../ui/separator";
-import { HrZoneChart } from "./hr-chart";
+import { AltitudeChart } from "./altitude-chart";
+import { CadenceChart } from "./cadence-chart";
+import { HrChart } from "./hr-chart";
+import { HrZoneChart } from "./hr-zone-chart";
 import { RadialBarGraph } from "./radial-bar-graph";
 import { SplitsTable } from "./splits-table";
 import { StatGroup } from "./stats-group";
+import { VelocityChart } from "./velocity-chart";
 
 type ActivityViewProps = {
   activity: Activity;
@@ -172,11 +176,22 @@ function ActivityView({ activity }: ActivityViewProps) {
       />
 
       <Separator className="mb-12" />
-
       <HrZoneChart
         hrZones={activity.heartRateZonesBpm}
         hrZoneTimes={activity.heartRateZoneDurationsSeconds}
       />
+
+      <Separator className="mb-12" />
+      <HrChart activity={activity} />
+
+      <Separator className="mb-12" />
+      <CadenceChart activity={activity} />
+
+      <Separator className="mb-12" />
+      <VelocityChart activity={activity} />
+
+      <Separator className="mb-12" />
+      <AltitudeChart activity={activity} />
     </div>
   );
 }

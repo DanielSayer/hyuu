@@ -134,6 +134,7 @@ export const appRouter = router({
           averageCadence: true,
           averageStride: true,
           calories: true,
+          deviceName: true,
           trainingLoad: true,
           hrLoad: true,
           intensity: true,
@@ -195,6 +196,14 @@ export const appRouter = router({
               operators.asc(table.streamType),
               operators.asc(table.id),
             ],
+          },
+          bestEfforts: {
+            columns: {
+              id: true,
+              activityId: true,
+              targetDistanceMeters: true,
+              durationSeconds: true,
+            },
           },
         },
       });

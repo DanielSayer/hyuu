@@ -60,6 +60,7 @@ export const intervalsActivityDetailSchema = z
     average_cadence: toNumberOrNull,
     average_stride: toNumberOrNull,
     calories: toNumberOrNull,
+    device_name: z.string().nullable().optional(),
     icu_training_load: toIntOrNull,
     hr_load: toIntOrNull,
     icu_intensity: toNumberOrNull,
@@ -163,7 +164,10 @@ export const intervalsActivityStreamSchema = z
     data: intervalsActivityStreamDataSchema,
     data2: intervalsActivityStreamDataSchema.nullable().optional(),
     valueTypeIsArray: z.boolean().nullable().optional(),
-    anomalies: z.array(intervalsActivityStreamAnomalySchema).nullable().optional(),
+    anomalies: z
+      .array(intervalsActivityStreamAnomalySchema)
+      .nullable()
+      .optional(),
     custom: z.boolean().nullable().optional(),
     allNull: z.boolean().nullable().optional(),
   })

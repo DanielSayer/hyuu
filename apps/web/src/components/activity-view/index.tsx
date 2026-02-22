@@ -23,6 +23,7 @@ import { RadialBarGraph } from "./radial-bar-graph";
 import { SplitsTable } from "./splits-table";
 import { StatGroup } from "./stats-group";
 import { VelocityChart } from "./velocity-chart";
+import { BestEfforts } from "./best-efforts";
 
 type ActivityViewProps = {
   activity: Activity;
@@ -31,7 +32,7 @@ type ActivityViewProps = {
 function ActivityView({ activity }: ActivityViewProps) {
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-5xl font-bold tracking-tight">
             {activity.name ?? "Morning Run"}
@@ -41,14 +42,73 @@ function ActivityView({ activity }: ActivityViewProps) {
             {formatDateTime(activity.startDateLocal)}
           </p>
         </div>
-        <Badge className="uppercase">{activity.type}</Badge>
+        <div className="flex flex-col items-end gap-2">
+          {activity.deviceName && (
+            <p className="text-muted-foreground text-sm">
+              {activity.deviceName}
+            </p>
+          )}
+          <Badge className="uppercase">{activity.type}</Badge>
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-8">
         <div className="col-span-2">
           <RouteMap
             mapData={activity.mapData}
-            className="h-[50vh] rounded-xl"
+            className="h-[50vh] max-h-128 rounded-xl"
           />
+
+          <div className="mx-auto grid grid-cols-4 gap-4">
+            {activity.hrLoad && (
+              <RadialBarGraph
+                value={activity.hrLoad}
+                label="HR Load"
+                variant={1}
+              />
+            )}
+            {activity.trainingLoad && (
+              <RadialBarGraph
+                value={activity.trainingLoad}
+                label="Training Load"
+                variant={2}
+              />
+            )}
+            {activity.intensity && (
+              <RadialBarGraph
+                value={activity.intensity}
+                label="Intensity"
+                variant={3}
+              />
+            )}
+            {activity.maxHeartrate && activity.athleteMaxHr && (
+              <HoverCard>
+                <HoverCardTrigger>
+                  <RadialBarGraph
+                    value={
+                      (activity.maxHeartrate / activity.athleteMaxHr) * 100
+                    }
+                    label="Max HR"
+                    displayValue={activity.maxHeartrate}
+                    variant={4}
+                  />
+                </HoverCardTrigger>
+                <HoverCardContent side="right">
+                  <p className="mb-0.5 font-bold">Max Heartrate Summary</p>
+                  <p>
+                    You achieved{" "}
+                    {Math.round(
+                      (activity.maxHeartrate / activity.athleteMaxHr) * 100,
+                    )}
+                    % of your max heartrate.
+                  </p>
+                  <div className="text-muted-foreground">
+                    <p>This run max {activity.maxHeartrate} bpm</p>
+                    <p>All time max {activity.athleteMaxHr} bpm</p>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
+            )}
+          </div>
         </div>
 
         <div className="border-border bg-card flex flex-col justify-between rounded-xl border p-6">
@@ -117,51 +177,10 @@ function ActivityView({ activity }: ActivityViewProps) {
               ]}
             />
           </div>
+
+          <Separator className="my-6" />
+          <BestEfforts efforts={activity.bestEfforts} />
         </div>
-      </div>
-      <div className="mx-auto grid w-2/3 grid-cols-4 gap-4">
-        {activity.hrLoad && (
-          <RadialBarGraph value={activity.hrLoad} label="HR Load" variant={1} />
-        )}
-        {activity.trainingLoad && (
-          <RadialBarGraph
-            value={activity.trainingLoad}
-            label="Training Load"
-            variant={2}
-          />
-        )}
-        {activity.intensity && (
-          <RadialBarGraph
-            value={activity.intensity}
-            label="Intensity"
-            variant={3}
-          />
-        )}
-        {activity.maxHeartrate && activity.athleteMaxHr && (
-          <HoverCard>
-            <HoverCardTrigger>
-              <RadialBarGraph
-                value={(activity.maxHeartrate / activity.athleteMaxHr) * 100}
-                label="Max HR"
-                variant={4}
-              />
-            </HoverCardTrigger>
-            <HoverCardContent side="right">
-              <p className="mb-0.5 font-bold">Max Heartrate Summary</p>
-              <p>
-                You achieved{" "}
-                {Math.round(
-                  (activity.maxHeartrate / activity.athleteMaxHr) * 100,
-                )}
-                % of your max heartrate.
-              </p>
-              <div className="text-muted-foreground">
-                <p>This run max {activity.maxHeartrate} bpm</p>
-                <p>All time max {activity.athleteMaxHr} bpm</p>
-              </div>
-            </HoverCardContent>
-          </HoverCard>
-        )}
       </div>
 
       <Separator className="mb-12" />
@@ -196,6 +215,7 @@ function ActivityView({ activity }: ActivityViewProps) {
 
       <Separator className="mb-12" />
       <AltitudeChart activity={activity} />
+      <div className="h-12" />
     </div>
   );
 }

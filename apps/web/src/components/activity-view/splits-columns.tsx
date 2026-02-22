@@ -15,6 +15,7 @@ export const columns = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Lap" />
     ),
+    enableHiding: false,
     cell: ({ row }) => {
       return (
         <div className="flex items-center gap-2">

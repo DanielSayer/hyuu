@@ -60,7 +60,7 @@ function HrChart({ activity }: { activity: Activity }) {
     <div className="space-y-4">
       <h2 className="text-3xl font-bold tracking-tight">Heart Rate</h2>
 
-      <ChartContainer config={chartConfig} className="h-[25vh] w-full">
+      <ChartContainer config={chartConfig} className="h-[25vh] max-h-64 w-full">
         <AreaChart
           accessibilityLayer
           data={chartData}
@@ -126,7 +126,7 @@ function HeartrateTooltip({
 
   return (
     <div className="border-border bg-background rounded-lg border px-3 py-2 shadow-md">
-      <p className="text-sm font-medium">Cadence</p>
+      <p className="text-sm font-medium">Heart Rate</p>
       <div className="text-muted-foreground mt-1 flex flex-col gap-0.5 text-sm">
         <span className="flex items-center gap-1.5">
           <HeartPulseIcon className="size-3.5" /> {heartrate} bpm

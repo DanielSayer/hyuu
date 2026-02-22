@@ -10,6 +10,7 @@ import { ChartContainer, type ChartConfig } from "../ui/chart";
 type RadialBarGraphProps = {
   value: number;
   label: string;
+  displayValue?: number;
   variant: 1 | 2 | 3 | 4 | 5;
 };
 
@@ -21,7 +22,12 @@ const colorVariants = {
   5: "var(--color-chart-5)",
 };
 
-function RadialBarGraph({ value, label, variant }: RadialBarGraphProps) {
+function RadialBarGraph({
+  value,
+  label,
+  variant,
+  displayValue,
+}: RadialBarGraphProps) {
   const chartVariant = colorVariants[variant];
   const chartData = [{ value, fill: chartVariant }];
   const chartConfig = {
@@ -71,7 +77,8 @@ function RadialBarGraph({ value, label, variant }: RadialBarGraphProps) {
                       y={viewBox.cy}
                       className="fill-foreground text-4xl font-bold"
                     >
-                      {Math.round(chartData[0].value).toLocaleString()}
+                      {displayValue ??
+                        Math.round(chartData[0].value).toLocaleString()}
                     </tspan>
                   </text>
                 );

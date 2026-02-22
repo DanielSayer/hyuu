@@ -2,11 +2,7 @@ import { formatTime } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
 import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  type ChartConfig,
-} from "../ui/chart";
+import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
 import { Button } from "../ui/button";
 import {
   buildCompareChartData,
@@ -20,7 +16,9 @@ type AxisSide = "left" | "right";
 
 function getDefaultSelectedMetrics(availableMetrics: MetricKey[]): MetricKey[] {
   const preferred: MetricKey[] = ["heartrate", "velocity_smooth"];
-  const selected = preferred.filter((metric) => availableMetrics.includes(metric));
+  const selected = preferred.filter((metric) =>
+    availableMetrics.includes(metric),
+  );
 
   if (selected.length > 0) {
     return selected;
@@ -29,7 +27,9 @@ function getDefaultSelectedMetrics(availableMetrics: MetricKey[]): MetricKey[] {
   return availableMetrics.slice(0, 2);
 }
 
-function mapMetricsToAxes(selectedMetrics: MetricKey[]): Partial<Record<MetricKey, AxisSide>> {
+function mapMetricsToAxes(
+  selectedMetrics: MetricKey[],
+): Partial<Record<MetricKey, AxisSide>> {
   const leftPrimary = selectedMetrics[0];
   const rightPrimary = selectedMetrics[1];
   const axisByMetric: Partial<Record<MetricKey, AxisSide>> = {};
@@ -116,12 +116,15 @@ function CompareChart({ activity }: { activity: Activity }) {
     () => getDefaultSelectedMetrics(availableMetrics),
     [availableMetrics],
   );
-  const [selectedMetrics, setSelectedMetrics] =
-    useState<MetricKey[]>(defaultSelectedMetrics);
+  const [selectedMetrics, setSelectedMetrics] = useState<MetricKey[]>(
+    defaultSelectedMetrics,
+  );
 
   useEffect(() => {
     setSelectedMetrics((previous) => {
-      const filtered = previous.filter((metric) => availableMetrics.includes(metric));
+      const filtered = previous.filter((metric) =>
+        availableMetrics.includes(metric),
+      );
       if (filtered.length > 0) {
         return filtered;
       }
@@ -179,7 +182,12 @@ function CompareChart({ activity }: { activity: Activity }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-3xl font-bold tracking-tight">Compare</h2>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Compare</h2>
+          <p className="text-muted-foreground text-sm">
+            Overlay multiple metrics on the same chart.
+          </p>
+        </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {availableMetrics.map((metric) => {
             const isSelected = selectedMetrics.includes(metric);
@@ -197,7 +205,7 @@ function CompareChart({ activity }: { activity: Activity }) {
         </div>
       </div>
 
-      <ChartContainer config={chartConfig} className="h-[25vh] w-full">
+      <ChartContainer config={chartConfig} className="h-[25vh] max-h-64 w-full">
         <LineChart
           accessibilityLayer
           data={chartData}
@@ -314,7 +322,10 @@ function CompareChartTooltip({
       <p className="text-sm font-medium">{formatTime(row.second)}</p>
       <div className="text-muted-foreground mt-1 flex flex-col gap-0.5 text-sm">
         {visibleMetricRows.map((metricRow) => (
-          <div key={metricRow.metric} className="flex items-center justify-between gap-4">
+          <div
+            key={metricRow.metric}
+            className="flex items-center justify-between gap-4"
+          >
             <span>{metricRow.label}</span>
             <span className="font-medium">{metricRow.value}</span>
           </div>

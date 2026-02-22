@@ -54,6 +54,7 @@ export function mapActivityToActivityValues({
     averageCadence: transformCadence(activity.detail.average_cadence),
     averageStride: toNumberOrNull(activity.detail.average_stride),
     calories: toNumberOrNull(activity.detail.calories),
+    deviceName: activity.detail.device_name ?? null,
     trainingLoad: toIntOrNull(activity.detail.icu_training_load),
     hrLoad: toIntOrNull(activity.detail.hr_load),
     intensity: toNumberOrNull(activity.detail.icu_intensity),

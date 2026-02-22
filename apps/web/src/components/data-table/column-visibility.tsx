@@ -32,6 +32,10 @@ function ColumnVisibility<TData>({ table }: ColumnVisibilityProps<TData>) {
                   ? (metaData.title as string)
                   : column.id;
 
+              if (!column.getCanHide()) {
+                return null;
+              }
+
               return (
                 <Label key={column.id} className="flex items-center gap-2">
                   <Checkbox

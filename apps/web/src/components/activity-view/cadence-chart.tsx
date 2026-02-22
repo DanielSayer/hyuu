@@ -59,12 +59,7 @@ function CadenceChart({ activity }: { activity: Activity }) {
   const renderDot = ({ cx, cy, payload }: ScatterShapeProps) => {
     if (!payload || cx === undefined || cy === undefined) return <g />;
     return (
-      <circle
-        cx={cx}
-        cy={cy}
-        r={3}
-        fill={getCadenceColor(payload.cadence)}
-      />
+      <circle cx={cx} cy={cy} r={3} fill={getCadenceColor(payload.cadence)} />
     );
   };
 
@@ -72,7 +67,7 @@ function CadenceChart({ activity }: { activity: Activity }) {
     <div className="space-y-4">
       <h2 className="text-3xl font-bold tracking-tight">Cadence</h2>
 
-      <ChartContainer config={chartConfig} className="h-[25vh] w-full">
+      <ChartContainer config={chartConfig} className="h-[25vh] max-h-64 w-full">
         <ScatterChart
           accessibilityLayer
           data={chartData}

@@ -1,6 +1,7 @@
 import type { IntervalsGateway } from "../../acl/intervals-gateway";
 import type { IntervalsRepository } from "../../persistence/intervals-repository";
 import type { SyncWindow } from "../../domain/models/sync-log";
+import { computeBestEffortsFromDistanceStream } from "../../utils";
 
 const PREFERRED_STREAM_TYPES = [
   "cadence",
@@ -40,7 +41,8 @@ export async function fetchAndUpsertActivities({
       requestedStreamTypes.length > 0
         ? await gateway.fetchActivityStreams(activityId, requestedStreamTypes)
         : [];
-    activities.push({ activityId, detail, map, streams });
+    const bestEfforts = computeBestEffortsFromDistanceStream(streams);
+    activities.push({ activityId, detail, map, streams, bestEfforts });
   }
 
   const savedActivityCount = await repository.upsertActivities({

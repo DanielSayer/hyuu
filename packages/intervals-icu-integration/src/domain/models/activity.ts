@@ -18,9 +18,17 @@ export type IntervalsActivityStream = z.infer<
   typeof intervalsActivityStreamSchema
 >;
 
+export type IntervalsComputedBestEffort = {
+  targetDistanceMeters: number;
+  durationSeconds: number;
+  startIndex: number;
+  endIndex: number;
+};
+
 export type IntervalsActivityAggregate = {
   activityId: string;
   detail: IntervalsActivityDetail;
   map: IntervalsActivityMap;
   streams: IntervalsActivityStream[];
+  bestEfforts: IntervalsComputedBestEffort[];
 };

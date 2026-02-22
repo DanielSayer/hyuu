@@ -208,6 +208,32 @@ export const intervalsActivityStream = pgTable(
   ],
 );
 
+export const intervalsActivityBestEffort = pgTable(
+  "intervals_activity_best_effort",
+  {
+    id: serial("id").primaryKey(),
+    activityId: integer("activity_id")
+      .notNull()
+      .references(() => intervalsActivity.id, { onDelete: "cascade" }),
+    targetDistanceMeters: doublePrecision("target_distance_meters").notNull(),
+    durationSeconds: integer("duration_seconds").notNull(),
+    startIndex: integer("start_index").notNull(),
+    endIndex: integer("end_index").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("intervals_activity_best_effort_unique").on(
+      table.activityId,
+      table.targetDistanceMeters,
+    ),
+    index("intervals_activity_best_effort_activity_idx").on(table.activityId),
+  ],
+);
+
 export const intervalsAthleteProfileRelations = relations(
   intervalsAthleteProfile,
   ({ one }) => ({
@@ -237,6 +263,7 @@ export const intervalsActivityRelations = relations(
     }),
     intervals: many(intervalsActivityInterval),
     streams: many(intervalsActivityStream),
+    bestEfforts: many(intervalsActivityBestEffort),
   }),
 );
 
@@ -255,6 +282,16 @@ export const intervalsActivityStreamRelations = relations(
   ({ one }) => ({
     activity: one(intervalsActivity, {
       fields: [intervalsActivityStream.activityId],
+      references: [intervalsActivity.id],
+    }),
+  }),
+);
+
+export const intervalsActivityBestEffortRelations = relations(
+  intervalsActivityBestEffort,
+  ({ one }) => ({
+    activity: one(intervalsActivity, {
+      fields: [intervalsActivityBestEffort.activityId],
       references: [intervalsActivity.id],
     }),
   }),

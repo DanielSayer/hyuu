@@ -1,4 +1,5 @@
 import type { IntervalsActivityAggregate } from "../../domain/models/activity";
+import { z } from "zod";
 import {
   toDateOrNull,
   toIntArrayOrNull,
@@ -10,6 +11,13 @@ import {
 function transformCadence(cadence: number | null | undefined) {
   return cadence ? cadence * 2 : null;
 }
+
+const bestEffortRawDataSchema = z.object({
+  targetDistanceMeters: z.number(),
+  durationSeconds: z.number().int().nonnegative(),
+  startIndex: z.number().int().nonnegative(),
+  endIndex: z.number().int().nonnegative(),
+});
 
 export function mapActivityToActivityValues({
   userId,
@@ -117,4 +125,26 @@ export function mapActivityToStreamRows({
     rawData: stream,
     updatedAt: now,
   }));
+}
+
+export function mapActivityToBestEffortRows({
+  activityId,
+  activity,
+  now,
+}: {
+  activityId: number;
+  activity: IntervalsActivityAggregate;
+  now: Date;
+}) {
+  return activity.bestEfforts.map((bestEffort) => {
+    const parsedBestEffort = bestEffortRawDataSchema.parse(bestEffort);
+    return {
+      activityId,
+      targetDistanceMeters: parsedBestEffort.targetDistanceMeters,
+      durationSeconds: parsedBestEffort.durationSeconds,
+      startIndex: parsedBestEffort.startIndex,
+      endIndex: parsedBestEffort.endIndex,
+      updatedAt: now,
+    };
+  });
 }

@@ -16,6 +16,7 @@ import {
 import { Separator } from "../ui/separator";
 import { AltitudeChart } from "./altitude-chart";
 import { CadenceChart } from "./cadence-chart";
+import { CompareChart } from "./compare-chart";
 import { HrChart } from "./hr-chart";
 import { HrZoneChart } from "./hr-zone-chart";
 import { RadialBarGraph } from "./radial-bar-graph";
@@ -180,6 +181,9 @@ function ActivityView({ activity }: ActivityViewProps) {
         hrZones={activity.heartRateZonesBpm}
         hrZoneTimes={activity.heartRateZoneDurationsSeconds}
       />
+
+      <Separator className="mb-12" />
+      <CompareChart activity={activity} />
 
       <Separator className="mb-12" />
       <HrChart activity={activity} />

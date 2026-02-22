@@ -143,7 +143,7 @@ function ActivityView({ activity }: ActivityViewProps) {
               <RadialBarGraph
                 value={(activity.maxHeartrate / activity.athleteMaxHr) * 100}
                 label="Max HR"
-                variant={3}
+                variant={4}
               />
             </HoverCardTrigger>
             <HoverCardContent side="right">

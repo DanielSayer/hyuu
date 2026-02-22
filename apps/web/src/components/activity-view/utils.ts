@@ -32,7 +32,7 @@ const metricSpecs: Record<MetricKey, MetricSpec> = {
   heartrate: {
     label: "Heart Rate",
     unit: "bpm",
-    color: "var(--chart-1)",
+    color: "var(--chart-3)",
     normalizeRawValue: (value) => {
       if (typeof value !== "number" || !Number.isFinite(value)) {
         return null;
@@ -58,7 +58,7 @@ const metricSpecs: Record<MetricKey, MetricSpec> = {
   velocity_smooth: {
     label: "Pace",
     unit: "/km",
-    color: "var(--chart-3)",
+    color: "var(--chart-4)",
     normalizeRawValue: (value) => {
       if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
         return null;
@@ -71,7 +71,7 @@ const metricSpecs: Record<MetricKey, MetricSpec> = {
   fixed_altitude: {
     label: "Elevation",
     unit: "m",
-    color: "var(--chart-4)",
+    color: "var(--chart-5)",
     normalizeRawValue: (value) => {
       if (typeof value !== "number" || !Number.isFinite(value)) {
         return null;
@@ -83,7 +83,10 @@ const metricSpecs: Record<MetricKey, MetricSpec> = {
   },
 };
 
-function getMetricSeries(activity: Activity, metric: MetricKey): MetricSeriesPoint[] {
+function getMetricSeries(
+  activity: Activity,
+  metric: MetricKey,
+): MetricSeriesPoint[] {
   const stream = activity.streams.find((x) => x.streamType === metric);
   if (!stream || !Array.isArray(stream.data)) {
     return [];
@@ -101,7 +104,9 @@ function getMetricSeries(activity: Activity, metric: MetricKey): MetricSeriesPoi
 }
 
 function getAvailableMetrics(activity: Activity): MetricKey[] {
-  return metricKeys.filter((metric) => getMetricSeries(activity, metric).length > 0);
+  return metricKeys.filter(
+    (metric) => getMetricSeries(activity, metric).length > 0,
+  );
 }
 
 function buildCompareChartData(

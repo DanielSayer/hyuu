@@ -2,11 +2,7 @@ import { formatTime } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
 import { MountainIcon, TimerIcon } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  type ChartConfig,
-} from "../ui/chart";
+import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
 
 type AltitudePoint = {
   second: number;
@@ -16,7 +12,7 @@ type AltitudePoint = {
 const chartConfig = {
   altitude: {
     label: "Altitude",
-    color: "var(--chart-4)",
+    color: "var(--chart-5)",
   },
 } satisfies ChartConfig;
 

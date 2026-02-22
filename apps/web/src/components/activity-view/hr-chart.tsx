@@ -22,7 +22,7 @@ type HrPoint = {
 const chartConfig = {
   heartrate: {
     label: "Heart Rate",
-    color: "var(--chart-1)",
+    color: "var(--chart-3)",
   },
 } satisfies ChartConfig;
 

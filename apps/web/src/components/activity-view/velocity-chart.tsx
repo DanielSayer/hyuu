@@ -2,11 +2,7 @@ import { formatPace, formatTime } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
 import { GaugeIcon, TimerIcon } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  type ChartConfig,
-} from "../ui/chart";
+import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
 
 type VelocityPoint = {
   second: number;
@@ -16,7 +12,7 @@ type VelocityPoint = {
 const chartConfig = {
   velocity: {
     label: "Pace",
-    color: "var(--chart-3)",
+    color: "var(--chart-4)",
   },
 } satisfies ChartConfig;
 

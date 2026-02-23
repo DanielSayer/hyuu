@@ -74,13 +74,6 @@ function CadenceChart({ activity }: { activity: Activity }) {
           </span>{" "}
           <span className="text-muted-foreground text-sm">spm</span>.
         </p>
-        <p className="text-muted-foreground text-sm">
-          Max cadence:{" "}
-          <span className="font-bold">
-            {Math.round(activity.maxCadence ?? 0)}
-          </span>{" "}
-          <span className="text-muted-foreground text-sm">spm</span>.
-        </p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[25vh] max-h-64 w-full">
@@ -104,7 +97,7 @@ function CadenceChart({ activity }: { activity: Activity }) {
             tickMargin={8}
             width={40}
             domain={([dataMin, dataMax]) => [
-              Math.max(0, dataMin - 10),
+              Math.max(80, dataMin - 5),
               dataMax + 5,
             ]}
           />

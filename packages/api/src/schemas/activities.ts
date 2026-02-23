@@ -23,7 +23,7 @@ export const activityStreamAnomaliesSchema = z.array(
 );
 export const activityStreamData2Schema = activityStreamDataSchema.nullable();
 
-const mapLatLngSchema = z.array(z.number());
+const mapLatLngSchema = z.array(z.number()).nullable().optional();
 
 const mapRouteSchema = z
   .object({

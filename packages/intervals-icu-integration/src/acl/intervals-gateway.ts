@@ -72,6 +72,7 @@ export function createHttpIntervalsGateway(
         operation: `activity.${activityId}.map`,
         url: INTERVALS_ENDPOINTS.ACTIVITY.MAP(activityId),
       });
+
       return mapIntervalsActivityMap(payload);
     },
     async fetchActivityStreams(activityId, types) {

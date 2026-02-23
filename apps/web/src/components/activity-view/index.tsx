@@ -187,6 +187,7 @@ function ActivityView({ activity }: ActivityViewProps) {
 
       <SplitsTable
         splits={activity.intervals
+          .filter((x) => x.intervalType === "WORK")
           .sort((a, b) => (a.startTime ?? 0) - (b.startTime ?? 0))
           .map((x, i) => ({
             ...x,

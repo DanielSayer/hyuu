@@ -16,14 +16,7 @@ export const columns = [
       <DataTableColumnHeader column={column} title="Lap" />
     ),
     enableHiding: false,
-    cell: ({ row }) => {
-      return (
-        <div className="flex items-center gap-2">
-          {row.original.lapNumber}
-          <Badge variant="outline">{row.original.intervalType}</Badge>
-        </div>
-      );
-    },
+    cell: ({ row }) => row.original.lapNumber,
     meta: {
       title: "Lap",
     },

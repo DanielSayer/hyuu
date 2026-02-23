@@ -52,7 +52,6 @@ export function mapActivityToActivityValues({
     averageHeartrate: toNumberOrNull(activity.detail.average_heartrate),
     maxHeartrate: toNumberOrNull(activity.detail.max_heartrate),
     averageCadence: transformCadence(activity.detail.average_cadence),
-    maxCadence: transformCadence(activity.detail.max_cadence),
     averageStride: toNumberOrNull(activity.detail.average_stride),
     calories: toNumberOrNull(activity.detail.calories),
     deviceName: activity.detail.device_name ?? null,

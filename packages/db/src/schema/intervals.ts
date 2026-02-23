@@ -106,7 +106,6 @@ export const intervalsActivity = pgTable(
     averageHeartrate: doublePrecision("average_heartrate"),
     maxHeartrate: doublePrecision("max_heartrate"),
     averageCadence: doublePrecision("average_cadence"),
-    maxCadence: doublePrecision("max_cadence"),
     averageStride: doublePrecision("average_stride"),
     calories: doublePrecision("calories"),
     deviceName: text("device_name"),

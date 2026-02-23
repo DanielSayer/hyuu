@@ -62,6 +62,9 @@ export function RouteMap({
   }
 
   const { latlngs, bounds } = mapData;
+  const coordinates = latlngs
+    .filter((x) => !!x)
+    .map(([lat, lng]) => [lat, lng] as Coordinate);
 
   return (
     <div
@@ -85,7 +88,9 @@ export function RouteMap({
             attribution={MAP_ATTRIBUTION}
           />
           <Polyline
-            positions={latlngs.map(([lat, lng]) => [lat, lng] as Coordinate)}
+            positions={coordinates.map(
+              ([lat, lng]) => [lat, lng] as Coordinate,
+            )}
             pathOptions={{ color: "#2563eb", weight: 4, opacity: 0.95 }}
             interactive={false}
           />

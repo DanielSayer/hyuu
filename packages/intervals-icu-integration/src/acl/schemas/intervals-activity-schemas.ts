@@ -58,7 +58,6 @@ export const intervalsActivityDetailSchema = z
     average_heartrate: toNumberOrNull,
     max_heartrate: toNumberOrNull,
     average_cadence: toNumberOrNull,
-    max_cadence: toNumberOrNull,
     average_stride: toNumberOrNull,
     calories: toNumberOrNull,
     device_name: z.string().nullable().optional(),
@@ -75,7 +74,7 @@ export const intervalsActivityDetailSchema = z
   })
   .loose();
 
-const intervalsMapLatLngSchema = z.array(z.number());
+const intervalsMapLatLngSchema = z.array(z.number()).nullable().optional();
 
 const intervalsMapRouteSchema = z
   .object({

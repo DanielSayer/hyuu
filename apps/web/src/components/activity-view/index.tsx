@@ -185,7 +185,6 @@ function ActivityView({ activity }: ActivityViewProps) {
 
       <Separator className="mb-12" />
 
-      <h2 className="-mb-4 text-3xl font-bold tracking-tight">Splits</h2>
       <SplitsTable
         splits={activity.intervals
           .sort((a, b) => (a.startTime ?? 0) - (b.startTime ?? 0))

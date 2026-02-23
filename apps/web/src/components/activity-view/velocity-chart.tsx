@@ -1,7 +1,15 @@
 import { formatPace, formatTime } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
 import { GaugeIcon, TimerIcon } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Label,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
 
 type VelocityPoint = {
@@ -44,7 +52,19 @@ function VelocityChart({ activity }: { activity: Activity }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-3xl font-bold tracking-tight">Pace</h2>
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Pace</h2>
+        <p className="text-muted-foreground text-sm">
+          Average pace:{" "}
+          <span className="font-bold">{formatPace(activity.averageSpeed)}</span>{" "}
+          <span className="text-muted-foreground text-sm">/km</span>.
+        </p>
+        <p className="text-muted-foreground text-sm">
+          Max pace:{" "}
+          <span className="font-bold">{formatPace(activity.maxSpeed)}</span>{" "}
+          <span className="text-muted-foreground text-sm">/km</span>.
+        </p>
+      </div>
 
       <ChartContainer config={chartConfig} className="h-[25vh] max-h-64 w-full">
         <AreaChart
@@ -81,9 +101,21 @@ function VelocityChart({ activity }: { activity: Activity }) {
             axisLine={false}
             tickMargin={8}
             width={56}
+            domain={([dataMin, dataMax]) => [0, dataMax + 0.5]}
             tickFormatter={(value) => formatPace(Number(value))}
           />
           <ChartTooltip cursor={false} content={<VelocityTooltip />} />
+          <ReferenceLine
+            y={activity.averageSpeed ?? undefined}
+            strokeDasharray="5 5"
+            stroke="var(--color-velocity)"
+          >
+            <Label
+              value={formatPace(activity.averageSpeed)}
+              offset={10}
+              position="left"
+            />
+          </ReferenceLine>
 
           <Area
             dataKey="velocity"

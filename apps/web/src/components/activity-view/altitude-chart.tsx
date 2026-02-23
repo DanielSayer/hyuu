@@ -44,7 +44,23 @@ function AltitudeChart({ activity }: { activity: Activity }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-3xl font-bold tracking-tight">Elevation</h2>
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Elevation</h2>
+        <p className="text-muted-foreground text-sm">
+          Total elevation gain:{" "}
+          <span className="font-bold">
+            {Math.round(activity.totalElevationGain ?? 0)}
+          </span>{" "}
+          <span className="text-muted-foreground text-sm">m</span>.
+        </p>
+        <p className="text-muted-foreground text-sm">
+          Total elevation loss:{" "}
+          <span className="font-bold">
+            {Math.round(activity.totalElevationLoss ?? 0)}
+          </span>{" "}
+          <span className="text-muted-foreground text-sm">m</span>.
+        </p>
+      </div>
 
       <ChartContainer config={chartConfig} className="h-[25vh] max-h-64 w-full">
         <AreaChart

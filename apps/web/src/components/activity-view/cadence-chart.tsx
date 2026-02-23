@@ -65,7 +65,23 @@ function CadenceChart({ activity }: { activity: Activity }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-3xl font-bold tracking-tight">Cadence</h2>
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Cadence</h2>
+        <p className="text-muted-foreground text-sm">
+          Average cadence:{" "}
+          <span className="font-bold">
+            {Math.round(activity.averageCadence ?? 0)}
+          </span>{" "}
+          <span className="text-muted-foreground text-sm">spm</span>.
+        </p>
+        <p className="text-muted-foreground text-sm">
+          Max cadence:{" "}
+          <span className="font-bold">
+            {Math.round(activity.maxCadence ?? 0)}
+          </span>{" "}
+          <span className="text-muted-foreground text-sm">spm</span>.
+        </p>
+      </div>
 
       <ChartContainer config={chartConfig} className="h-[25vh] max-h-64 w-full">
         <ScatterChart

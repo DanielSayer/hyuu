@@ -33,13 +33,21 @@ function SplitsTable({ splits }: SplitsTableProps) {
   const fullscreenTable = useReactTable(createBaseTableOptions());
 
   return (
-    <DataTable
-      table={table}
-      fullscreenTable={fullscreenTable}
-      isExpandable
-      title="Splits"
-      description="All of your detailed lap data."
-    />
+    <div>
+      <div className="-mb-4">
+        <h2 className="text-3xl font-bold tracking-tight">Splits</h2>
+        <p className="text-muted-foreground text-sm">
+          Detailed lap data for your activity.
+        </p>
+      </div>
+      <DataTable
+        table={table}
+        fullscreenTable={fullscreenTable}
+        isExpandable
+        title="Splits"
+        description="All of your detailed lap data."
+      />
+    </div>
   );
 }
 

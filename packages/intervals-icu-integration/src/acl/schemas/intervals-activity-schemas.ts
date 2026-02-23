@@ -58,6 +58,7 @@ export const intervalsActivityDetailSchema = z
     average_heartrate: toNumberOrNull,
     max_heartrate: toNumberOrNull,
     average_cadence: toNumberOrNull,
+    max_cadence: toNumberOrNull,
     average_stride: toNumberOrNull,
     calories: toNumberOrNull,
     device_name: z.string().nullable().optional(),

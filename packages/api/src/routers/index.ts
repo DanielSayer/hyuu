@@ -132,6 +132,7 @@ export const appRouter = router({
           averageHeartrate: true,
           maxHeartrate: true,
           averageCadence: true,
+          maxCadence: true,
           averageStride: true,
           calories: true,
           deviceName: true,

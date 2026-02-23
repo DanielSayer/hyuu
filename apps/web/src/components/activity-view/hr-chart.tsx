@@ -6,7 +6,15 @@ import {
   TimerIcon,
   HeartPulseIcon,
 } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Label,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -58,7 +66,19 @@ function HrChart({ activity }: { activity: Activity }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-3xl font-bold tracking-tight">Heart Rate</h2>
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Heart Rate</h2>
+        <p className="text-muted-foreground text-sm">
+          Average heart rate:{" "}
+          <span className="font-bold">{activity.averageHeartrate}</span>{" "}
+          <span className="text-muted-foreground text-sm">bpm</span>.
+        </p>
+        <p className="text-muted-foreground text-sm">
+          Max heart rate:{" "}
+          <span className="font-bold">{activity.maxHeartrate}</span>{" "}
+          <span className="text-muted-foreground text-sm">bpm</span>.
+        </p>
+      </div>
 
       <ChartContainer config={chartConfig} className="h-[25vh] max-h-64 w-full">
         <AreaChart
@@ -98,6 +118,19 @@ function HrChart({ activity }: { activity: Activity }) {
             domain={([dataMin, dataMax]) => [dataMin - 10, dataMax + 5]}
           />
           <ChartTooltip cursor={false} content={<HeartrateTooltip />} />
+          {activity.averageHeartrate && (
+            <ReferenceLine
+              y={activity.averageHeartrate}
+              strokeDasharray="5 5"
+              stroke="var(--color-heartrate)"
+            >
+              <Label
+                value={activity.averageHeartrate}
+                offset={10}
+                position="left"
+              />
+            </ReferenceLine>
+          )}
 
           <Area
             dataKey="heartrate"

@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   IntervalsActivityStream,
   IntervalsComputedBestEffort,
+  IntervalsComputedOneKmSplitTime,
 } from "./domain/models/activity";
 
 function toDateOrNull(value: string | null | undefined) {
@@ -143,9 +144,67 @@ function computeBestEffortsFromDistanceStream(
   });
 }
 
+function computeOneKmSplitTimesFromDistanceStream(
+  streams: IntervalsActivityStream[],
+): IntervalsComputedOneKmSplitTime[] {
+  const distanceMetersBySecond = extractDistanceMetersBySecond(streams);
+  if (!distanceMetersBySecond || distanceMetersBySecond.length < 2) {
+    return [];
+  }
+
+  const totalSamples = distanceMetersBySecond.length;
+  const lastSampleIndex = totalSamples - 1;
+  const totalDistanceMeters = distanceMetersBySecond[lastSampleIndex] ?? 0;
+  const splitTimes: IntervalsComputedOneKmSplitTime[] = [];
+  let splitStartIndex = 0;
+  let nextSplitTargetDistance = 1000;
+  let nextSplitNumber = 1;
+
+  while (splitStartIndex < lastSampleIndex) {
+    let endIndex = splitStartIndex + 1;
+    while (endIndex < totalSamples) {
+      const endDistance = distanceMetersBySecond[endIndex];
+      if (endDistance === undefined) {
+        break;
+      }
+      if (endDistance >= nextSplitTargetDistance) {
+        break;
+      }
+      endIndex += 1;
+    }
+
+    if (endIndex >= totalSamples) {
+      break;
+    }
+
+    splitTimes.push({
+      splitNumber: nextSplitNumber,
+      splitDistanceMeters: 1000,
+      durationSeconds: endIndex - splitStartIndex,
+    });
+
+    splitStartIndex = endIndex;
+    nextSplitTargetDistance += 1000;
+    nextSplitNumber += 1;
+  }
+
+  const completedDistanceMeters = (nextSplitNumber - 1) * 1000;
+  const remainderDistanceMeters = totalDistanceMeters - completedDistanceMeters;
+  if (remainderDistanceMeters > 0 && splitStartIndex < lastSampleIndex) {
+    splitTimes.push({
+      splitNumber: nextSplitNumber,
+      splitDistanceMeters: remainderDistanceMeters,
+      durationSeconds: lastSampleIndex - splitStartIndex,
+    });
+  }
+
+  return splitTimes;
+}
+
 export {
   BEST_EFFORT_TARGET_DISTANCES_METERS,
   computeBestEffortsFromDistanceStream,
+  computeOneKmSplitTimesFromDistanceStream,
   toDateOrNull,
   toIntOrNull,
   toNumberOrNull,

@@ -2,6 +2,13 @@ import z from "zod";
 
 export const heartRateZonesBpmSchema = z.array(z.number().int());
 export const heartRateZoneDurationsSecondsSchema = z.array(z.number().int());
+export const oneKmSplitTimesSecondsSchema = z.array(
+  z.object({
+    splitNumber: z.number().int().positive(),
+    splitDistanceMeters: z.number().positive(),
+    durationSeconds: z.number().int().nonnegative(),
+  }),
+);
 export const intervalSummarySchema = z.array(z.string());
 
 export const activityStreamDataSchema = z.union([

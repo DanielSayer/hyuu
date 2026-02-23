@@ -35,7 +35,7 @@ function SplitsTable({ splits }: SplitsTableProps) {
   return (
     <div>
       <div className="-mb-4">
-        <h2 className="text-3xl font-bold tracking-tight">Splits</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Laps</h2>
         <p className="text-muted-foreground text-sm">
           Detailed lap data for your activity.
         </p>
@@ -44,7 +44,7 @@ function SplitsTable({ splits }: SplitsTableProps) {
         table={table}
         fullscreenTable={fullscreenTable}
         isExpandable
-        title="Splits"
+        title="Laps"
         description="All of your detailed lap data."
       />
     </div>

@@ -19,6 +19,14 @@ const bestEffortRawDataSchema = z.object({
   endIndex: z.number().int().nonnegative(),
 });
 
+const oneKmSplitTimesSecondsSchema = z.array(
+  z.object({
+    splitNumber: z.number().int().positive(),
+    splitDistanceMeters: z.number().positive(),
+    durationSeconds: z.number().int().nonnegative(),
+  }),
+);
+
 export function mapActivityToActivityValues({
   userId,
   intervalsAthleteId,
@@ -63,6 +71,9 @@ export function mapActivityToActivityValues({
     heartRateZonesBpm: toIntArrayOrNull(activity.detail.icu_hr_zones),
     heartRateZoneDurationsSeconds: toIntArrayOrNull(
       activity.detail.icu_hr_zone_times,
+    ),
+    oneKmSplitTimesSeconds: oneKmSplitTimesSecondsSchema.parse(
+      activity.oneKmSplitTimesSeconds,
     ),
     intervalSummary: activity.detail.interval_summary ?? null,
     mapData: activity.map ?? null,

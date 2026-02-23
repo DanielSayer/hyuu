@@ -11,6 +11,7 @@ import {
   heartRateZoneDurationsSecondsSchema,
   heartRateZonesBpmSchema,
   intervalSummarySchema,
+  oneKmSplitTimesSecondsSchema,
 } from "../schemas/activities";
 import { parseNullableJsonb } from "../utils";
 
@@ -142,6 +143,7 @@ export const appRouter = router({
           athleteMaxHr: true,
           heartRateZonesBpm: true,
           heartRateZoneDurationsSeconds: true,
+          oneKmSplitTimesSeconds: true,
           intervalSummary: true,
           mapData: true,
           createdAt: true,
@@ -234,6 +236,10 @@ export const appRouter = router({
         heartRateZoneDurationsSeconds: parseNullableJsonb(
           row.heartRateZoneDurationsSeconds,
           heartRateZoneDurationsSecondsSchema,
+        ),
+        oneKmSplitTimesSeconds: parseNullableJsonb(
+          row.oneKmSplitTimesSeconds,
+          oneKmSplitTimesSecondsSchema,
         ),
         intervalSummary: parseNullableJsonb(
           row.intervalSummary,

@@ -25,10 +25,17 @@ export type IntervalsComputedBestEffort = {
   endIndex: number;
 };
 
+export type IntervalsComputedOneKmSplitTime = {
+  splitNumber: number;
+  splitDistanceMeters: number;
+  durationSeconds: number;
+};
+
 export type IntervalsActivityAggregate = {
   activityId: string;
   detail: IntervalsActivityDetail;
   map: IntervalsActivityMap;
   streams: IntervalsActivityStream[];
   bestEfforts: IntervalsComputedBestEffort[];
+  oneKmSplitTimesSeconds: IntervalsComputedOneKmSplitTime[];
 };

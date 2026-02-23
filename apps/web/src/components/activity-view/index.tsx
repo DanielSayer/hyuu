@@ -15,15 +15,16 @@ import {
 } from "../ui/hover-card";
 import { Separator } from "../ui/separator";
 import { AltitudeChart } from "./altitude-chart";
+import { BestEfforts } from "./best-efforts";
 import { CadenceChart } from "./cadence-chart";
 import { CompareChart } from "./compare-chart";
 import { HrChart } from "./hr-chart";
 import { HrZoneChart } from "./hr-zone-chart";
 import { RadialBarGraph } from "./radial-bar-graph";
+import { SplitsChart } from "./splits-chart";
 import { SplitsTable } from "./splits-table";
 import { StatGroup } from "./stats-group";
 import { VelocityChart } from "./velocity-chart";
-import { BestEfforts } from "./best-efforts";
 
 type ActivityViewProps = {
   activity: Activity;
@@ -194,6 +195,9 @@ function ActivityView({ activity }: ActivityViewProps) {
             lapNumber: i + 1,
           }))}
       />
+      <Separator className="mb-12" />
+
+      <SplitsChart splits={activity.oneKmSplitTimesSeconds ?? []} />
 
       <Separator className="mb-12" />
       <HrZoneChart

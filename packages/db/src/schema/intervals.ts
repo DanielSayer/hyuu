@@ -116,6 +116,7 @@ export const intervalsActivity = pgTable(
     athleteMaxHr: integer("athlete_max_hr"),
     heartRateZonesBpm: jsonb("heart_rate_zones_bpm"),
     heartRateZoneDurationsSeconds: jsonb("heart_rate_zone_durations_seconds"),
+    oneKmSplitTimesSeconds: jsonb("one_km_split_times_seconds"),
     intervalSummary: jsonb("interval_summary"),
     mapData: jsonb("map_data"),
     rawData: jsonb("raw_data").notNull(),

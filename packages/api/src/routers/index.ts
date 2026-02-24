@@ -13,13 +13,9 @@ import {
   intervalSummarySchema,
   oneKmSplitTimesSecondsSchema,
 } from "../schemas/activities";
-import {
-  formatDistance,
-  formatDuration,
-  formatPace,
-  getIsoWeekNumber,
-  parseNullableJsonb,
-} from "../utils";
+import { formatPace, getIsoWeekNumber, parseNullableJsonb } from "../utils";
+import { formatSecondsToHms } from "@hyuu/utils/time";
+import { formatDistanceToKm } from "@hyuu/utils/distance";
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
@@ -221,8 +217,8 @@ export const appRouter = router({
           return {
             id: row.id,
             date: row.startDate,
-            duration: formatDuration(elapsedSeconds),
-            distance: formatDistance(distanceMeters),
+            duration: formatSecondsToHms(elapsedSeconds),
+            distance: formatDistanceToKm(distanceMeters),
             bpm: Math.round(row.averageHeartrate ?? 0),
             pace: formatPace(elapsedSeconds, distanceMeters),
             load: row.trainingLoad ?? 0,
@@ -235,8 +231,8 @@ export const appRouter = router({
           week,
           {
             elevation: Math.round(totals.elevation),
-            runDist: formatDistance(totals.distanceMeters),
-            runTime: formatDuration(totals.elapsedSeconds),
+            runDist: formatDistanceToKm(totals.distanceMeters),
+            runTime: formatSecondsToHms(totals.elapsedSeconds),
           },
         ]),
       );

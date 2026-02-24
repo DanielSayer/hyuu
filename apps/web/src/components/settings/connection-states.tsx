@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@hyuu/utils/dates";
 import { ExternalLink, Link2, RefreshCw } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -24,8 +24,8 @@ export function DisconnectedState({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-              <Link2 className="h-6 w-6 text-muted-foreground" />
+            <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-lg">
+              <Link2 className="text-muted-foreground h-6 w-6" />
             </div>
             <div>
               <CardTitle className="text-lg">Intervals</CardTitle>
@@ -43,7 +43,7 @@ export function DisconnectedState({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Connect your Intervals account to sync your athlete profile and
           activity data. Your existing synced data remains available if you
           disconnect later.
@@ -75,8 +75,8 @@ export function ConnectedState({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <Link2 className="h-6 w-6 text-primary" />
+            <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg">
+              <Link2 className="text-primary h-6 w-6" />
             </div>
             <div>
               <CardTitle className="text-lg">Intervals</CardTitle>
@@ -95,7 +95,7 @@ export function ConnectedState({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
+        <div className="border-border/50 bg-muted/30 rounded-lg border p-4">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">Account</p>

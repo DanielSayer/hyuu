@@ -1,5 +1,5 @@
-import { formatTime } from "@/lib/utils";
 import type { BestEffort } from "@/utils/types/activities";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 import { TrendingUp, TrophyIcon } from "lucide-react";
 
 const BEST_EFFORT_TARGET_DISTANCES_METERS = [
@@ -205,7 +205,7 @@ export function BestEfforts({ efforts }: BestEffortsProps) {
                   glow={config.glow}
                 />
                 <span className="font-mono text-sm leading-tight font-semibold tabular-nums">
-                  {formatTime(effort.durationSeconds)}
+                  {formatSecondsToHms(effort.durationSeconds)}
                 </span>
                 <span className="text-muted-foreground font-mono text-xs tabular-nums">
                   {formatPace(distance, effort.durationSeconds)}

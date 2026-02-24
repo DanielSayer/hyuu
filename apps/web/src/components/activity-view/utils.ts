@@ -1,5 +1,5 @@
-import { formatPace } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
+import { formatSpeedToMinsPerKm } from "@hyuu/utils/pace";
 
 const metricKeys = [
   "heartrate",
@@ -65,8 +65,8 @@ const metricSpecs: Record<MetricKey, MetricSpec> = {
       }
       return value;
     },
-    formatAxisValue: (value) => formatPace(value),
-    formatTooltipValue: (value) => `${formatPace(value)}/km`,
+    formatAxisValue: (value) => formatSpeedToMinsPerKm(value),
+    formatTooltipValue: (value) => `${formatSpeedToMinsPerKm(value)}/km`,
   },
   fixed_altitude: {
     label: "Elevation",

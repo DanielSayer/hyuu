@@ -1,8 +1,10 @@
-import { cn, formatDistance, formatSpeed, formatTime } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { ActivitySplit } from "@/utils/types/activities";
 import { createColumnHelper } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "../data-table/column-header";
-import { Badge } from "../ui/badge";
+import { formatDistanceToKm } from "@hyuu/utils/distance";
+import { formatSecondsToHms } from "@hyuu/utils/time";
+import { formatSpeedToKmPerHour } from "@hyuu/utils/pace";
 
 type SplitsTableData = ActivitySplit & {
   lapNumber: number;
@@ -23,7 +25,7 @@ export const columns = [
   }),
   columnHelper.accessor("distance", {
     header: () => <Header title="Distance" sub="km" />,
-    cell: ({ row }) => formatDistance(row.original.distance),
+    cell: ({ row }) => formatDistanceToKm(row.original.distance),
     meta: {
       title: "Distance",
     },
@@ -31,21 +33,23 @@ export const columns = [
   columnHelper.accessor("startTime", {
     header: () => <Header title="Start Time" />,
     cell: ({ row }) =>
-      row.original.startTime ? formatTime(row.original.startTime) : "0:00",
+      row.original.startTime
+        ? formatSecondsToHms(row.original.startTime)
+        : "0:00",
     meta: {
       title: "Start Time",
     },
   }),
   columnHelper.accessor("elapsedTime", {
     header: () => <Header title="Elapsed Time" />,
-    cell: ({ row }) => formatTime(row.original.elapsedTime),
+    cell: ({ row }) => formatSecondsToHms(row.original.elapsedTime),
     meta: {
       title: "Elapsed Time",
     },
   }),
   columnHelper.accessor("movingTime", {
     header: () => <Header title="Moving Time" />,
-    cell: ({ row }) => formatTime(row.original.movingTime),
+    cell: ({ row }) => formatSecondsToHms(row.original.movingTime),
 
     meta: {
       title: "Moving Time",
@@ -53,21 +57,23 @@ export const columns = [
   }),
   columnHelper.accessor("endTime", {
     header: () => <Header title="End Time" />,
-    cell: ({ row }) => formatTime(row.original.endTime),
+    cell: ({ row }) => formatSecondsToHms(row.original.endTime),
     meta: {
       title: "End Time",
     },
   }),
   columnHelper.accessor("averageSpeed", {
     header: () => <Header title="Average Speed" sub="km/h" />,
-    cell: ({ row }) => formatSpeed(row.original.averageSpeed),
+    cell: ({ row }) =>
+      formatSpeedToKmPerHour(row.original.averageSpeed, { showUnit: false }),
     meta: {
       title: "Average Speed",
     },
   }),
   columnHelper.accessor("maxSpeed", {
     header: () => <Header title="Max Speed" sub="km/h" />,
-    cell: ({ row }) => formatSpeed(row.original.maxSpeed),
+    cell: ({ row }) =>
+      formatSpeedToKmPerHour(row.original.maxSpeed, { showUnit: false }),
     meta: {
       title: "Max Speed",
     },

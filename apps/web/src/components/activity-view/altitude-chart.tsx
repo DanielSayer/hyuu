@@ -1,8 +1,8 @@
-import { formatTime } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
 import { MountainIcon, TimerIcon } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 
 type AltitudePoint = {
   second: number;
@@ -90,7 +90,7 @@ function AltitudeChart({ activity }: { activity: Activity }) {
             axisLine={false}
             tickMargin={8}
             minTickGap={30}
-            tickFormatter={(value) => formatTime(Number(value))}
+            tickFormatter={(value) => formatSecondsToHms(Number(value))}
           />
           <YAxis tickLine={false} axisLine={false} tickMargin={8} width={48} />
           <ChartTooltip cursor={false} content={<AltitudeTooltip />} />
@@ -128,7 +128,7 @@ function AltitudeTooltip({
           <MountainIcon className="size-3.5" /> {Math.round(altitude)} m
         </span>
         <span className="flex items-center gap-1.5">
-          <TimerIcon className="size-3.5" /> {formatTime(second)}
+          <TimerIcon className="size-3.5" /> {formatSecondsToHms(second)}
         </span>
       </div>
     </div>

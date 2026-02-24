@@ -1,34 +1,15 @@
 import { Badge } from "@/components/ui/badge";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@hyuu/utils/dates";
 import type { trpc, TRPCResult } from "@/utils/trpc";
 import { CalendarDays, HeartPulse, Timer } from "lucide-react";
 import { memo } from "react";
 import { RouteMap } from "./route-map";
+import { formatDistanceToKm } from "@hyuu/utils/distance";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 
 type ActivityCardProps = {
   activity: TRPCResult<typeof trpc.activities.queryOptions>["items"][number];
 };
-
-function formatDistance(distanceMeters: number) {
-  return `${(distanceMeters / 1000).toFixed(2)} km`;
-}
-
-function formatDuration(totalSeconds: number | null | undefined) {
-  if (!totalSeconds || totalSeconds <= 0) {
-    return "N/A";
-  }
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-
-  if (hours > 0) {
-    return `${hours}h ${minutes.toString().padStart(2, "0")}m`;
-  }
-  if (minutes > 0) {
-    return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
-  }
-  return `${seconds}s`;
-}
 
 function formatAverageHeartRate(heartRate: number | null | undefined) {
   if (!heartRate || heartRate <= 0) {
@@ -51,13 +32,15 @@ function ActivityCardBase({ activity }: ActivityCardProps) {
               {formatDateTime(activity.startDate)}
             </p>
           </div>
-          <Badge variant="secondary">{formatDistance(activity.distance)}</Badge>
+          <Badge variant="secondary">
+            {formatDistanceToKm(activity.distance)}
+          </Badge>
         </div>
 
         <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
           <div className="bg-background/70 text-muted-foreground flex items-center gap-1.5 rounded-md border px-2.5 py-2">
             <Timer className="h-3.5 w-3.5" />
-            <span>Elapsed: {formatDuration(activity.elapsedTime)}</span>
+            <span>Elapsed: {formatSecondsToHms(activity.elapsedTime)}</span>
           </div>
           <div className="bg-background/70 text-muted-foreground flex items-center gap-1.5 rounded-md border px-2.5 py-2">
             <HeartPulse className="h-3.5 w-3.5" />

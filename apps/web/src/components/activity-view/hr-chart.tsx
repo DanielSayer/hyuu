@@ -1,4 +1,4 @@
-import { formatTime } from "@/lib/utils";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 import type { Activity } from "@/utils/types/activities";
 import {
   ClockIcon,
@@ -108,7 +108,7 @@ function HrChart({ activity }: { activity: Activity }) {
             axisLine={false}
             tickMargin={8}
             minTickGap={30}
-            tickFormatter={(value) => formatTime(Number(value))}
+            tickFormatter={(value) => formatSecondsToHms(Number(value))}
           />
           <YAxis
             tickLine={false}
@@ -165,7 +165,7 @@ function HeartrateTooltip({
           <HeartPulseIcon className="size-3.5" /> {heartrate} bpm
         </span>
         <span className="flex items-center gap-1.5">
-          <TimerIcon className="size-3.5" /> {formatTime(second)}
+          <TimerIcon className="size-3.5" /> {formatSecondsToHms(second)}
         </span>
       </div>
     </div>

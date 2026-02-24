@@ -1,4 +1,4 @@
-import { formatPace, formatTime } from "@/lib/utils";
+import { formatSecondsToMinsPerKm } from "@hyuu/utils/pace";
 
 type SplitsChartProps = {
   splits: { splitNumber: number; durationSeconds: number }[];
@@ -63,7 +63,7 @@ export function SplitsChart({ splits }: SplitsChartProps) {
                   className="bg-primary text-primary-foreground flex min-w-28 items-center rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-500"
                   style={{ width: `${barWidth}%` }}
                 >
-                  {formatTime(split.pace)}
+                  {formatSecondsToMinsPerKm(split.pace)}
                 </div>
               </div>
 

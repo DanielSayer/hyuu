@@ -16,30 +16,6 @@ export function toFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-export function formatDuration(totalSeconds: number): string {
-  if (totalSeconds <= 0) {
-    return "0m";
-  }
-
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  if (hours > 0) {
-    return `${hours}h${minutes}m`;
-  }
-  if (minutes > 0) {
-    return `${minutes}m`;
-  }
-  return `${Math.floor(totalSeconds)}s`;
-}
-
-export function formatDistance(distanceMeters: number): string {
-  if (distanceMeters <= 0) {
-    return "0 km";
-  }
-  const km = Number((distanceMeters / 1000).toFixed(1));
-  return `${km} km`;
-}
-
 export function formatPace(
   totalSeconds: number,
   distanceMeters: number,

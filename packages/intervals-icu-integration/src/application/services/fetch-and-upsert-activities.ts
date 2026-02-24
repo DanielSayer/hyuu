@@ -57,11 +57,18 @@ export async function fetchAndUpsertActivities({
     });
   }
 
-  const savedActivityCount = await repository.upsertActivities({
+  const { savedActivityCount, affectedDates } = await repository.upsertActivities({
     userId,
     intervalsAthleteId: athleteId,
     activities,
   });
+
+  if (affectedDates.length > 0) {
+    await repository.recomputeDashboardRunRollups({
+      userId,
+      affectedDates,
+    });
+  }
 
   return {
     eventCount: activityIds.length,

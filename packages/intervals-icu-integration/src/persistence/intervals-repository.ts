@@ -20,6 +20,11 @@ export type LatestSyncAttempt = {
   startedAt: Date;
 };
 
+export type UpsertActivitiesResult = {
+  savedActivityCount: number;
+  affectedDates: Date[];
+};
+
 export interface IntervalsRepository {
   getLatestConnectionProfile(userId: string): Promise<IntervalsConnectionProfile | null>;
   getConnectedAthleteId(userId: string): Promise<string | null>;
@@ -50,5 +55,11 @@ export interface IntervalsRepository {
     userId: string;
     intervalsAthleteId: string;
     activities: IntervalsActivityAggregate[];
-  }): Promise<number>;
+  }): Promise<UpsertActivitiesResult>;
+  recomputeDashboardRunRollups(params: {
+    userId: string;
+    affectedDates: Date[];
+  }): Promise<void>;
+  recomputeDashboardRunRollupsForUser(userId: string): Promise<void>;
+  listConnectedUserIds(): Promise<string[]>;
 }

@@ -17,8 +17,11 @@ import {
   formatDistance,
   formatDuration,
   formatPace,
+  formatPaceFromSecondsPerKm,
   getIsoWeekNumber,
   parseNullableJsonb,
+  startOfIsoWeekUtc,
+  startOfMonthUtc,
 } from "../utils";
 
 export const appRouter = router({
@@ -154,6 +157,159 @@ export const appRouter = router({
         routePreview: parseNullableJsonb(row.mapData, activityMapDataSchema),
       }));
     }),
+  dashboard: protectedProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    const currentWeekStart = startOfIsoWeekUtc(now);
+    const oldestWeekStart = new Date(currentWeekStart);
+    oldestWeekStart.setUTCDate(oldestWeekStart.getUTCDate() - 7 * 11);
+    const currentMonthStart = startOfMonthUtc(now);
+    const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+
+    const [weeklyRows, monthlyRows, prRows, recentRows] = await Promise.all([
+      db.query.dashboardRunRollupWeekly.findMany({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, ctx.session.user.id),
+            operators.gte(table.weekStartLocal, oldestWeekStart),
+            operators.lte(table.weekStartLocal, currentWeekStart),
+          ),
+        orderBy: (table, operators) => [operators.asc(table.weekStartLocal)],
+        columns: {
+          weekStartLocal: true,
+          totalDistanceM: true,
+          avgPaceSecPerKm: true,
+        },
+      }),
+      db.query.dashboardRunRollupMonthly.findMany({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, ctx.session.user.id),
+            operators.gte(table.monthStartLocal, yearStart),
+            operators.lte(table.monthStartLocal, currentMonthStart),
+          ),
+        orderBy: (table, operators) => [operators.asc(table.monthStartLocal)],
+        columns: {
+          monthStartLocal: true,
+          totalDistanceM: true,
+          totalElapsedS: true,
+        },
+      }),
+      db.query.dashboardRunPr.findMany({
+        where: (table, operators) =>
+          operators.eq(table.userId, ctx.session.user.id),
+        columns: {
+          prType: true,
+          valueSeconds: true,
+          valueDistanceM: true,
+          activityStartDate: true,
+        },
+      }),
+      db.query.intervalsActivity.findMany({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, ctx.session.user.id),
+            operators.isNotNull(table.startDate),
+          ),
+        orderBy: (table, operators) => [
+          operators.desc(table.startDate),
+          operators.desc(table.id),
+        ],
+        limit: 40,
+        columns: {
+          id: true,
+          name: true,
+          type: true,
+          startDate: true,
+          distance: true,
+          elapsedTime: true,
+        },
+      }),
+    ]);
+
+    const monthlyByStart = new Map(
+      monthlyRows.map((row) => [row.monthStartLocal.toISOString(), row]),
+    );
+    const currentMonth = monthlyByStart.get(currentMonthStart.toISOString());
+    let yearDistanceM = 0;
+    for (const row of monthlyRows) {
+      yearDistanceM += row.totalDistanceM ?? 0;
+    }
+
+    const currentWeek = weeklyRows.find(
+      (row) =>
+        row.weekStartLocal.toISOString() === currentWeekStart.toISOString(),
+    );
+
+    const prByType = new Map(prRows.map((row) => [row.prType, row]));
+    const recentRuns = recentRows
+      .filter((row) => isRunActivityType(row.type))
+      .slice(0, 5)
+      .map((row) => {
+        const elapsedSeconds = row.elapsedTime ?? 0;
+        const distanceMeters = row.distance ?? 0;
+        return {
+          id: row.id,
+          date: row.startDate,
+          name: row.name ?? "Untitled activity",
+          distanceMeters,
+          distance: formatDistance(distanceMeters),
+          pace: formatPace(elapsedSeconds, distanceMeters),
+          elapsedSeconds,
+          elapsed: formatDuration(elapsedSeconds),
+        };
+      });
+
+    const weeklyMileage = weeklyRows.map((row) => {
+      const distanceMeters = row.totalDistanceM ?? 0;
+      return {
+        weekStart: row.weekStartLocal,
+        distanceMeters,
+        distanceMiles: Number((distanceMeters / 1609.344).toFixed(2)),
+      };
+    });
+
+    const paceTrend = weeklyRows.map((row) => ({
+      weekStart: row.weekStartLocal,
+      paceSecPerKm: row.avgPaceSecPerKm,
+      pace: formatPaceFromSecondsPerKm(row.avgPaceSecPerKm),
+    }));
+
+    return {
+      kpis: {
+        totalMilesThisMonth: formatDistance(currentMonth?.totalDistanceM ?? 0),
+        totalMilesThisYear: formatDistance(yearDistanceM),
+        averagePaceThisWeek: formatPaceFromSecondsPerKm(
+          currentWeek?.avgPaceSecPerKm ?? null,
+        ),
+        totalTimeRunThisMonth: formatDuration(currentMonth?.totalElapsedS ?? 0),
+      },
+      personalRecords: {
+        fastest1km: formatDuration(
+          prByType.get("fastest_1km")?.valueSeconds ?? 0,
+        ),
+        fastest5k: formatDuration(
+          prByType.get("fastest_5k")?.valueSeconds ?? 0,
+        ),
+        fastest10k: formatDuration(
+          prByType.get("fastest_10k")?.valueSeconds ?? 0,
+        ),
+        fastestHalf: formatDuration(
+          prByType.get("fastest_half")?.valueSeconds ?? 0,
+        ),
+        fastestFull: formatDuration(
+          prByType.get("fastest_full")?.valueSeconds ?? 0,
+        ),
+        longestRunEver: formatDistance(
+          prByType.get("longest_run")?.valueDistanceM ?? 0,
+        ),
+      },
+      recentRuns,
+      trends: {
+        weeklyMileage,
+        averagePace: paceTrend,
+      },
+    };
+  }),
   trainingPlan: protectedProcedure
     .input(
       z.object({
@@ -399,3 +555,18 @@ export const appRouter = router({
     }),
 });
 export type AppRouter = typeof appRouter;
+
+const RUN_ACTIVITY_TYPES = new Set([
+  "run",
+  "trailrun",
+  "treadmillrun",
+  "virtualrun",
+]);
+
+function isRunActivityType(type: string | null) {
+  if (!type) {
+    return false;
+  }
+  const normalized = type.replaceAll(/[\s_-]/g, "").toLowerCase();
+  return RUN_ACTIVITY_TYPES.has(normalized);
+}

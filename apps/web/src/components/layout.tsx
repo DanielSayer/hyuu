@@ -25,6 +25,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { LoadingWrapper } from "./loading-wrapper";
 import { Skeleton } from "./ui/skeleton";
+import { Link } from "@tanstack/react-router";
 
 type AppLayoutProps = {
   children: ReactNode;
@@ -66,9 +67,13 @@ function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <CalendarIcon /> Training Plan
-                </SidebarMenuButton>
+                <SidebarMenuButton
+                  render={
+                    <Link to="/training-plan">
+                      <CalendarIcon /> Training Plan
+                    </Link>
+                  }
+                />
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton>

@@ -29,6 +29,7 @@
     "better-auth": "catalog:",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "dotenv": "catalog:",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.473.0",

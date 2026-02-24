@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrainingPlanRouteImport } from './routes/training-plan'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as SettingsRouteRouteImport } from './routes/settings/route'
@@ -16,6 +17,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsConnectionsRouteImport } from './routes/settings/connections'
 import { Route as ActivityActivityIdRouteImport } from './routes/activity.$activityId'
 
+const TrainingPlanRoute = TrainingPlanRouteImport.update({
+  id: '/training-plan',
+  path: '/training-plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/training-plan': typeof TrainingPlanRoute
   '/activity/$activityId': typeof ActivityActivityIdRoute
   '/settings/connections': typeof SettingsConnectionsRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/training-plan': typeof TrainingPlanRoute
   '/activity/$activityId': typeof ActivityActivityIdRoute
   '/settings/connections': typeof SettingsConnectionsRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/training-plan': typeof TrainingPlanRoute
   '/activity/$activityId': typeof ActivityActivityIdRoute
   '/settings/connections': typeof SettingsConnectionsRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/dashboard'
     | '/login'
+    | '/training-plan'
     | '/activity/$activityId'
     | '/settings/connections'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/dashboard'
     | '/login'
+    | '/training-plan'
     | '/activity/$activityId'
     | '/settings/connections'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/dashboard'
     | '/login'
+    | '/training-plan'
     | '/activity/$activityId'
     | '/settings/connections'
   fileRoutesById: FileRoutesById
@@ -104,11 +116,19 @@ export interface RootRouteChildren {
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  TrainingPlanRoute: typeof TrainingPlanRoute
   ActivityActivityIdRoute: typeof ActivityActivityIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/training-plan': {
+      id: '/training-plan'
+      path: '/training-plan'
+      fullPath: '/training-plan'
+      preLoaderRoute: typeof TrainingPlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -171,6 +191,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  TrainingPlanRoute: TrainingPlanRoute,
   ActivityActivityIdRoute: ActivityActivityIdRoute,
 }
 export const routeTree = rootRouteImport

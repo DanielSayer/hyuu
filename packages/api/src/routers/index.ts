@@ -13,7 +13,13 @@ import {
   intervalSummarySchema,
   oneKmSplitTimesSecondsSchema,
 } from "../schemas/activities";
-import { parseNullableJsonb } from "../utils";
+import {
+  formatDistance,
+  formatDuration,
+  formatPace,
+  getIsoWeekNumber,
+  parseNullableJsonb,
+} from "../utils";
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
@@ -95,6 +101,149 @@ export const appRouter = router({
           routePreview: parseNullableJsonb(item.mapData, activityMapDataSchema),
         })),
         nextCursor,
+      };
+    }),
+  activitiesMap: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.iso.datetime(),
+        endDate: z.iso.datetime(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const startDate = new Date(input.startDate);
+      const endDate = new Date(input.endDate);
+
+      if (startDate.getTime() > endDate.getTime()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "startDate must be before or equal to endDate",
+        });
+      }
+
+      const rows = await db.query.intervalsActivity.findMany({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, ctx.session.user.id),
+            operators.isNotNull(table.startDate),
+            operators.gte(table.startDate, startDate),
+            operators.lte(table.startDate, endDate),
+          ),
+        orderBy: (table, operators) => [
+          operators.asc(table.startDate),
+          operators.asc(table.id),
+        ],
+        columns: {
+          id: true,
+          name: true,
+          startDate: true,
+          distance: true,
+          elapsedTime: true,
+          averageHeartrate: true,
+          mapData: true,
+        },
+      });
+
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name ?? "Untitled activity",
+        startDate: row.startDate,
+        distance: row.distance ?? 0,
+        elapsedTime: row.elapsedTime,
+        averageHeartrate: row.averageHeartrate,
+        routePreview: parseNullableJsonb(row.mapData, activityMapDataSchema),
+      }));
+    }),
+  trainingPlan: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.iso.datetime(),
+        endDate: z.iso.datetime(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const startDate = new Date(input.startDate);
+      const endDate = new Date(input.endDate);
+
+      if (startDate.getTime() > endDate.getTime()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "startDate must be before or equal to endDate",
+        });
+      }
+
+      const rows = await db.query.intervalsActivity.findMany({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, ctx.session.user.id),
+            operators.isNotNull(table.startDate),
+            operators.gte(table.startDate, startDate),
+            operators.lte(table.startDate, endDate),
+          ),
+        columns: {
+          id: true,
+          name: true,
+          startDate: true,
+          elapsedTime: true,
+          distance: true,
+          averageHeartrate: true,
+          trainingLoad: true,
+          totalElevationGain: true,
+        },
+      });
+
+      const weekTotals = new Map<
+        number,
+        { elevation: number; distanceMeters: number; elapsedSeconds: number }
+      >();
+
+      const workouts = rows
+        .filter(
+          (row): row is typeof row & { startDate: Date } => !!row.startDate,
+        )
+        .map((row) => {
+          const elapsedSeconds = row.elapsedTime ?? 0;
+          const distanceMeters = row.distance ?? 0;
+          const elevationMeters = row.totalElevationGain ?? 0;
+          const week = getIsoWeekNumber(row.startDate);
+          const current = weekTotals.get(week) ?? {
+            elevation: 0,
+            distanceMeters: 0,
+            elapsedSeconds: 0,
+          };
+
+          weekTotals.set(week, {
+            elevation: current.elevation + elevationMeters,
+            distanceMeters: current.distanceMeters + distanceMeters,
+            elapsedSeconds: current.elapsedSeconds + elapsedSeconds,
+          });
+
+          return {
+            id: row.id,
+            date: row.startDate,
+            duration: formatDuration(elapsedSeconds),
+            distance: formatDistance(distanceMeters),
+            bpm: Math.round(row.averageHeartrate ?? 0),
+            pace: formatPace(elapsedSeconds, distanceMeters),
+            load: row.trainingLoad ?? 0,
+            title: row.name ?? "Untitled activity",
+          };
+        });
+
+      const weekSummaries = Object.fromEntries(
+        Array.from(weekTotals.entries()).map(([week, totals]) => [
+          week,
+          {
+            elevation: Math.round(totals.elevation),
+            runDist: formatDistance(totals.distanceMeters),
+            runTime: formatDuration(totals.elapsedSeconds),
+          },
+        ]),
+      );
+
+      return {
+        workouts,
+        weekSummaries,
       };
     }),
   activity: protectedProcedure

@@ -132,7 +132,10 @@ export const intervalsActivity = pgTable(
       table.intervalsActivityId,
     ),
     index("intervals_activity_user_idx").on(table.userId),
-    index("intervals_activity_user_start_idx").on(table.userId, table.startDate),
+    index("intervals_activity_user_start_idx").on(
+      table.userId,
+      table.startDate,
+    ),
     index("intervals_activity_user_type_start_idx").on(
       table.userId,
       table.type,
@@ -157,7 +160,7 @@ export const dashboardRunRollupWeekly = pgTable(
     totalDistanceM: doublePrecision("total_distance_m").default(0).notNull(),
     totalElapsedS: integer("total_elapsed_s").default(0).notNull(),
     totalMovingS: integer("total_moving_s").default(0).notNull(),
-    avgPaceSecPerKm: doublePrecision("avg_pace_sec_per_km"),
+    avgPaceSecPerKm: doublePrecision("avg_pace_sec_per_km").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -228,7 +231,10 @@ export const dashboardRunPr = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("dashboard_run_pr_user_type_unique").on(table.userId, table.prType),
+    uniqueIndex("dashboard_run_pr_user_type_unique").on(
+      table.userId,
+      table.prType,
+    ),
     index("dashboard_run_pr_user_idx").on(table.userId),
   ],
 );

@@ -33,78 +33,39 @@ export const appRouter = router({
       user: ctx.session.user,
     };
   }),
-  activities: protectedProcedure
-    .input(
-      z.object({
-        limit: z.number().int().min(1).max(100).default(20),
-        cursor: z
-          .object({
-            id: z.number().int().positive(),
-            startDate: z.iso.datetime(),
-          })
-          .optional(),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      const cursorStartDate = input.cursor
-        ? new Date(input.cursor.startDate)
-        : undefined;
+  recentActivities: protectedProcedure.query(async ({ ctx }) => {
+    const rows = await db.query.intervalsActivity.findMany({
+      where: (table, operators) =>
+        operators.and(
+          operators.eq(table.userId, ctx.session.user.id),
+          operators.isNotNull(table.startDate),
+        ),
+      orderBy: (table, operators) => [
+        operators.desc(table.startDate),
+        operators.desc(table.id),
+      ],
+      limit: 5,
+      columns: {
+        id: true,
+        name: true,
+        distance: true,
+        startDate: true,
+        elapsedTime: true,
+        averageHeartrate: true,
+        mapData: true,
+      },
+    });
 
-      const rows = await db.query.intervalsActivity.findMany({
-        where: (table, operators) =>
-          operators.and(
-            operators.eq(table.userId, ctx.session.user.id),
-            operators.isNotNull(table.startDate),
-            input.cursor && cursorStartDate
-              ? operators.or(
-                  operators.lt(table.startDate, cursorStartDate),
-                  operators.and(
-                    operators.eq(table.startDate, cursorStartDate),
-                    operators.lt(table.id, input.cursor.id),
-                  ),
-                )
-              : undefined,
-          ),
-        orderBy: (table, operators) => [
-          operators.desc(table.startDate),
-          operators.desc(table.id),
-        ],
-        limit: input.limit + 1,
-        columns: {
-          id: true,
-          name: true,
-          distance: true,
-          startDate: true,
-          elapsedTime: true,
-          averageHeartrate: true,
-          mapData: true,
-        },
-      });
-
-      const hasNextPage = rows.length > input.limit;
-      const items = hasNextPage ? rows.slice(0, input.limit) : rows;
-      const lastItem = items.at(-1);
-      const nextCursor =
-        hasNextPage && lastItem?.startDate
-          ? {
-              id: lastItem.id,
-              startDate: lastItem.startDate.toISOString(),
-            }
-          : undefined;
-
-      return {
-        items: items.map((item) => ({
-          id: item.id,
-          name: item.name ?? "Untitled activity",
-          distance: item.distance ?? 0,
-          startDate: item.startDate,
-          elapsedTime: item.elapsedTime,
-          averageHeartrate: item.averageHeartrate,
-          routePreview: parseNullableJsonb(item.mapData, activityMapDataSchema),
-        })),
-        nextCursor,
-      };
-    }),
+    return rows.map((item) => ({
+      id: item.id,
+      name: item.name ?? "Untitled activity",
+      distance: item.distance ?? 0,
+      startDate: item.startDate,
+      elapsedTime: item.elapsedTime,
+      averageHeartrate: item.averageHeartrate,
+      routePreview: parseNullableJsonb(item.mapData, activityMapDataSchema),
+    }));
+  }),
   activitiesMap: protectedProcedure
     .input(
       z.object({
@@ -160,11 +121,12 @@ export const appRouter = router({
     const now = new Date();
     const currentWeekStart = startOfIsoWeekUtc(now);
     const oldestWeekStart = new Date(currentWeekStart);
-    oldestWeekStart.setUTCDate(oldestWeekStart.getUTCDate() - 7 * 11);
+    oldestWeekStart.setUTCDate(oldestWeekStart.getUTCDate() - 7 * 12);
     const currentMonthStart = startOfMonthUtc(now);
     const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
-    const [weeklyRows, monthlyRows, prRows, recentRows] = await Promise.all([
+    const [weeklyRows, monthlyRows, prRows, latestSuccessfulSync] =
+      await Promise.all([
       db.query.dashboardRunRollupWeekly.findMany({
         where: (table, operators) =>
           operators.and(
@@ -203,24 +165,16 @@ export const appRouter = router({
           activityStartDate: true,
         },
       }),
-      db.query.intervalsActivity.findMany({
+      db.query.intervalsSyncLog.findFirst({
         where: (table, operators) =>
           operators.and(
             operators.eq(table.userId, ctx.session.user.id),
-            operators.isNotNull(table.startDate),
+            operators.eq(table.status, "success"),
+            operators.isNotNull(table.completedAt),
           ),
-        orderBy: (table, operators) => [
-          operators.desc(table.startDate),
-          operators.desc(table.id),
-        ],
-        limit: 40,
+        orderBy: (table, operators) => [operators.desc(table.completedAt)],
         columns: {
-          id: true,
-          name: true,
-          type: true,
-          startDate: true,
-          distance: true,
-          elapsedTime: true,
+          completedAt: true,
         },
       }),
     ]);
@@ -229,56 +183,36 @@ export const appRouter = router({
       monthlyRows.map((row) => [row.monthStartLocal.toISOString(), row]),
     );
     const currentMonth = monthlyByStart.get(currentMonthStart.toISOString());
-    const yearDistanceM = monthlyRows.reduce(
-      (acc, row) => acc + (row.totalDistanceM ?? 0),
-      0,
-    );
-
-    const currentWeek = weeklyRows.find(
-      (row) =>
-        row.weekStartLocal.toISOString() === currentWeekStart.toISOString(),
+    const yearlyTotals = monthlyRows.reduce(
+      (acc, row) => ({
+        totalDistanceM: acc.totalDistanceM + (row.totalDistanceM ?? 0),
+        totalElapsedS: acc.totalElapsedS + (row.totalElapsedS ?? 0),
+      }),
+      { totalDistanceM: 0, totalElapsedS: 0 },
     );
 
     const prByType = new Map(prRows.map((row) => [row.prType, row]));
-    const recentRuns = recentRows
-      .filter((row) => isRunActivityType(row.type))
-      .slice(0, 5)
-      .map((row) => {
-        const elapsedSeconds = row.elapsedTime ?? 0;
-        const distanceMeters = row.distance ?? 0;
-        return {
-          id: row.id,
-          date: row.startDate,
-          name: row.name ?? "Untitled activity",
-          distanceMeters,
-          distance: distanceMeters,
-          pace: elapsedSeconds / distanceMeters,
-          elapsedSeconds,
-          elapsed: elapsedSeconds,
-        };
-      });
 
     const weeklyMileage = weeklyRows.map((row) => {
       const distanceMeters = row.totalDistanceM ?? 0;
       return {
         weekStart: row.weekStartLocal,
         distanceMeters,
-        distanceMiles: Number((distanceMeters / 1609.344).toFixed(2)),
       };
     });
 
     const paceTrend = weeklyRows.map((row) => ({
       weekStart: row.weekStartLocal,
       paceSecPerKm: row.avgPaceSecPerKm,
-      pace: row.avgPaceSecPerKm,
     }));
 
     return {
+      lastSyncedAt: latestSuccessfulSync?.completedAt ?? null,
       kpis: {
+        distanceThisYear: yearlyTotals.totalDistanceM,
+        timeRunThisYear: yearlyTotals.totalElapsedS,
         distanceThisMonth: currentMonth?.totalDistanceM ?? 0,
-        distanceThisYear: yearDistanceM,
-        averagePaceThisWeek: currentWeek?.avgPaceSecPerKm ?? null,
-        totalTimeRunThisMonth: currentMonth?.totalElapsedS ?? 0,
+        timeRunThisMonth: currentMonth?.totalElapsedS ?? 0,
       },
       personalRecords: {
         fastest1km: prByType.get("fastest_1km")?.valueSeconds ?? 0,
@@ -288,7 +222,6 @@ export const appRouter = router({
         fastestFull: prByType.get("fastest_full")?.valueSeconds ?? 0,
         longestRunEver: prByType.get("longest_run")?.valueDistanceM ?? 0,
       },
-      recentRuns,
       trends: {
         weeklyMileage,
         averagePace: paceTrend,
@@ -540,18 +473,3 @@ export const appRouter = router({
     }),
 });
 export type AppRouter = typeof appRouter;
-
-const RUN_ACTIVITY_TYPES = new Set([
-  "run",
-  "trailrun",
-  "treadmillrun",
-  "virtualrun",
-]);
-
-function isRunActivityType(type: string | null) {
-  if (!type) {
-    return false;
-  }
-  const normalized = type.replaceAll(/[\s_-]/g, "").toLowerCase();
-  return RUN_ACTIVITY_TYPES.has(normalized);
-}

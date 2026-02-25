@@ -14,7 +14,10 @@ function formatSpeedToKmPerHour(
   return `${(speedMs * 3.6).toFixed(2)}${showUnit ? " km/h" : ""}`;
 }
 
-function formatSecondsToMinsPerKm(totalSeconds: number | null): string {
+function formatSecondsToMinsPerKm(
+  totalSeconds: number | null,
+  { showUnit }: { showUnit?: boolean } = { showUnit: true },
+): string {
   if (!totalSeconds) return "—";
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -22,7 +25,7 @@ function formatSecondsToMinsPerKm(totalSeconds: number | null): string {
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   }
-  return `${minutes}:${seconds.toString().padStart(2, "0")}/km`;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}${showUnit ? "/km" : ""}`;
 }
 
 export {

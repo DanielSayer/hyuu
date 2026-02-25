@@ -8,7 +8,7 @@ import { formatDistanceToKm } from "@hyuu/utils/distance";
 import { formatSecondsToHms } from "@hyuu/utils/time";
 
 type ActivityCardProps = {
-  activity: TRPCResult<typeof trpc.activities.queryOptions>["items"][number];
+  activity: TRPCResult<typeof trpc.recentActivities.queryOptions>[number];
 };
 
 function formatAverageHeartRate(heartRate: number | null | undefined) {

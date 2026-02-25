@@ -1,5 +1,5 @@
-import { formatTime } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 import { FootprintsIcon, TimerIcon } from "lucide-react";
 import { CartesianGrid, Scatter, ScatterChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
@@ -89,7 +89,7 @@ function CadenceChart({ activity }: { activity: Activity }) {
             axisLine={false}
             tickMargin={8}
             minTickGap={30}
-            tickFormatter={(value) => formatTime(Number(value))}
+            tickFormatter={(value) => formatSecondsToHms(Number(value))}
           />
           <YAxis
             tickLine={false}
@@ -128,7 +128,7 @@ function CadenceTooltip({
           <FootprintsIcon className="size-3.5" /> {cadence} spm
         </span>
         <span className="flex items-center gap-1.5">
-          <TimerIcon className="size-3.5" /> {formatTime(second)}
+          <TimerIcon className="size-3.5" /> {formatSecondsToHms(second)}
         </span>
       </div>
     </div>

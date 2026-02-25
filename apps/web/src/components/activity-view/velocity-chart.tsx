@@ -1,5 +1,6 @@
-import { formatPace, formatTime } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
+import { formatSpeedToMinsPerKm } from "@hyuu/utils/pace";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 import { GaugeIcon, TimerIcon } from "lucide-react";
 import {
   Area,
@@ -56,12 +57,16 @@ function VelocityChart({ activity }: { activity: Activity }) {
         <h2 className="text-3xl font-bold tracking-tight">Pace</h2>
         <p className="text-muted-foreground text-sm">
           Average pace:{" "}
-          <span className="font-bold">{formatPace(activity.averageSpeed)}</span>{" "}
+          <span className="font-bold">
+            {formatSpeedToMinsPerKm(activity.averageSpeed)}
+          </span>{" "}
           <span className="text-muted-foreground text-sm">/km</span>.
         </p>
         <p className="text-muted-foreground text-sm">
           Max pace:{" "}
-          <span className="font-bold">{formatPace(activity.maxSpeed)}</span>{" "}
+          <span className="font-bold">
+            {formatSpeedToMinsPerKm(activity.maxSpeed)}
+          </span>{" "}
           <span className="text-muted-foreground text-sm">/km</span>.
         </p>
       </div>
@@ -94,7 +99,7 @@ function VelocityChart({ activity }: { activity: Activity }) {
             axisLine={false}
             tickMargin={8}
             minTickGap={30}
-            tickFormatter={(value) => formatTime(Number(value))}
+            tickFormatter={(value) => formatSecondsToHms(Number(value))}
           />
           <YAxis
             tickLine={false}
@@ -102,7 +107,7 @@ function VelocityChart({ activity }: { activity: Activity }) {
             tickMargin={8}
             width={56}
             domain={([dataMin, dataMax]) => [0, dataMax + 0.5]}
-            tickFormatter={(value) => formatPace(Number(value))}
+            tickFormatter={(value) => formatSpeedToMinsPerKm(Number(value))}
           />
           <ChartTooltip cursor={false} content={<VelocityTooltip />} />
           <ReferenceLine
@@ -111,7 +116,7 @@ function VelocityChart({ activity }: { activity: Activity }) {
             stroke="var(--color-velocity)"
           >
             <Label
-              value={formatPace(activity.averageSpeed)}
+              value={formatSpeedToMinsPerKm(activity.averageSpeed)}
               offset={10}
               position="left"
             />
@@ -147,10 +152,11 @@ function VelocityTooltip({
       <p className="text-sm font-medium">Pace</p>
       <div className="text-muted-foreground mt-1 flex flex-col gap-0.5 text-sm">
         <span className="flex items-center gap-1.5">
-          <GaugeIcon className="size-3.5" /> {formatPace(velocity)}/km
+          <GaugeIcon className="size-3.5" /> {formatSpeedToMinsPerKm(velocity)}
+          /km
         </span>
         <span className="flex items-center gap-1.5">
-          <TimerIcon className="size-3.5" /> {formatTime(second)}
+          <TimerIcon className="size-3.5" /> {formatSecondsToHms(second)}
         </span>
       </div>
     </div>

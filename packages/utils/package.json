@@ -1,9 +1,21 @@
 {
-  "name": "@hyuu/intervals-icu-integration",
+  "name": "@hyuu/utils",
   "type": "module",
   "exports": {
     ".": {
       "default": "./src/index.ts"
+    },
+    "./distance": {
+      "default": "./src/distance.ts"
+    },
+    "./dates": {
+      "default": "./src/dates.ts"
+    },
+    "./time": {
+      "default": "./src/time.ts"
+    },
+    "./pace": {
+      "default": "./src/pace.ts"
     },
     "./*": {
       "default": "./src/*.ts"
@@ -13,11 +25,7 @@
     "check-types": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@hyuu/db": "workspace:*",
-    "@hyuu/env": "workspace:*",
-    "@hyuu/utils": "workspace:*",
-    "dotenv": "catalog:",
-    "drizzle-orm": "^0.45.1",
+    "date-fns": "^4.1.0",
     "zod": "catalog:"
   },
   "devDependencies": {

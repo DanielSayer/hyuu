@@ -1,10 +1,8 @@
-import {
-  formatDateTime,
-  formatDistance,
-  formatPace,
-  formatTime,
-} from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
+import { formatDateTime } from "@hyuu/utils/dates";
+import { formatDistanceToKm } from "@hyuu/utils/distance";
+import { formatSpeedToMinsPerKm } from "@hyuu/utils/pace";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 import { Calendar } from "lucide-react";
 import { RouteMap } from "../route-map";
 import { Badge } from "../ui/badge";
@@ -120,7 +118,7 @@ function ActivityView({ activity }: ActivityViewProps) {
               </p>
               <div className="flex items-baseline gap-2">
                 <span className="text-6xl leading-none font-black">
-                  {formatDistance(activity.distance)}
+                  {formatDistanceToKm(activity.distance, { showUnit: false })}
                 </span>
                 <span className="text-muted-foreground text-xl font-medium">
                   km
@@ -134,11 +132,11 @@ function ActivityView({ activity }: ActivityViewProps) {
               items={[
                 {
                   label: "Time",
-                  value: formatTime(activity.movingTime),
+                  value: formatSecondsToHms(activity.movingTime),
                 },
                 {
                   label: "Avg Pace",
-                  value: formatPace(activity.averageSpeed),
+                  value: formatSpeedToMinsPerKm(activity.averageSpeed),
                   sub: "/km",
                 },
                 {

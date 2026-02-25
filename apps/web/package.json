@@ -17,6 +17,7 @@
     "@hyuu/api": "workspace:*",
     "@hyuu/auth": "workspace:*",
     "@hyuu/env": "workspace:*",
+    "@hyuu/utils": "workspace:*",
     "@tailwindcss/vite": "^4.0.15",
     "@tanstack/react-form": "^1.12.3",
     "@tanstack/react-query": "^5.90.12",

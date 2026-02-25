@@ -2,6 +2,8 @@ import { db } from "@hyuu/db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { formatDistanceToKm } from "@hyuu/utils/distance";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 import { protectedProcedure, publicProcedure, router } from "../index";
 import {
   activityMapDataSchema,
@@ -14,10 +16,7 @@ import {
   oneKmSplitTimesSecondsSchema,
 } from "../schemas/activities";
 import {
-  formatDistance,
-  formatDuration,
   formatPace,
-  formatPaceFromSecondsPerKm,
   getIsoWeekNumber,
   parseNullableJsonb,
   startOfIsoWeekUtc,
@@ -230,10 +229,10 @@ export const appRouter = router({
       monthlyRows.map((row) => [row.monthStartLocal.toISOString(), row]),
     );
     const currentMonth = monthlyByStart.get(currentMonthStart.toISOString());
-    let yearDistanceM = 0;
-    for (const row of monthlyRows) {
-      yearDistanceM += row.totalDistanceM ?? 0;
-    }
+    const yearDistanceM = monthlyRows.reduce(
+      (acc, row) => acc + (row.totalDistanceM ?? 0),
+      0,
+    );
 
     const currentWeek = weeklyRows.find(
       (row) =>
@@ -252,10 +251,10 @@ export const appRouter = router({
           date: row.startDate,
           name: row.name ?? "Untitled activity",
           distanceMeters,
-          distance: formatDistance(distanceMeters),
-          pace: formatPace(elapsedSeconds, distanceMeters),
+          distance: distanceMeters,
+          pace: elapsedSeconds / distanceMeters,
           elapsedSeconds,
-          elapsed: formatDuration(elapsedSeconds),
+          elapsed: elapsedSeconds,
         };
       });
 
@@ -271,37 +270,23 @@ export const appRouter = router({
     const paceTrend = weeklyRows.map((row) => ({
       weekStart: row.weekStartLocal,
       paceSecPerKm: row.avgPaceSecPerKm,
-      pace: formatPaceFromSecondsPerKm(row.avgPaceSecPerKm),
+      pace: row.avgPaceSecPerKm,
     }));
 
     return {
       kpis: {
-        totalMilesThisMonth: formatDistance(currentMonth?.totalDistanceM ?? 0),
-        totalMilesThisYear: formatDistance(yearDistanceM),
-        averagePaceThisWeek: formatPaceFromSecondsPerKm(
-          currentWeek?.avgPaceSecPerKm ?? null,
-        ),
-        totalTimeRunThisMonth: formatDuration(currentMonth?.totalElapsedS ?? 0),
+        distanceThisMonth: currentMonth?.totalDistanceM ?? 0,
+        distanceThisYear: yearDistanceM,
+        averagePaceThisWeek: currentWeek?.avgPaceSecPerKm ?? null,
+        totalTimeRunThisMonth: currentMonth?.totalElapsedS ?? 0,
       },
       personalRecords: {
-        fastest1km: formatDuration(
-          prByType.get("fastest_1km")?.valueSeconds ?? 0,
-        ),
-        fastest5k: formatDuration(
-          prByType.get("fastest_5k")?.valueSeconds ?? 0,
-        ),
-        fastest10k: formatDuration(
-          prByType.get("fastest_10k")?.valueSeconds ?? 0,
-        ),
-        fastestHalf: formatDuration(
-          prByType.get("fastest_half")?.valueSeconds ?? 0,
-        ),
-        fastestFull: formatDuration(
-          prByType.get("fastest_full")?.valueSeconds ?? 0,
-        ),
-        longestRunEver: formatDistance(
-          prByType.get("longest_run")?.valueDistanceM ?? 0,
-        ),
+        fastest1km: prByType.get("fastest_1km")?.valueSeconds ?? 0,
+        fastest5k: prByType.get("fastest_5k")?.valueSeconds ?? 0,
+        fastest10k: prByType.get("fastest_10k")?.valueSeconds ?? 0,
+        fastestHalf: prByType.get("fastest_half")?.valueSeconds ?? 0,
+        fastestFull: prByType.get("fastest_full")?.valueSeconds ?? 0,
+        longestRunEver: prByType.get("longest_run")?.valueDistanceM ?? 0,
       },
       recentRuns,
       trends: {
@@ -377,8 +362,8 @@ export const appRouter = router({
           return {
             id: row.id,
             date: row.startDate,
-            duration: formatDuration(elapsedSeconds),
-            distance: formatDistance(distanceMeters),
+            duration: formatSecondsToHms(elapsedSeconds),
+            distance: formatDistanceToKm(distanceMeters),
             bpm: Math.round(row.averageHeartrate ?? 0),
             pace: formatPace(elapsedSeconds, distanceMeters),
             load: row.trainingLoad ?? 0,
@@ -391,8 +376,8 @@ export const appRouter = router({
           week,
           {
             elevation: Math.round(totals.elevation),
-            runDist: formatDistance(totals.distanceMeters),
-            runTime: formatDuration(totals.elapsedSeconds),
+            runDist: formatDistanceToKm(totals.distanceMeters),
+            runTime: formatSecondsToHms(totals.elapsedSeconds),
           },
         ]),
       );

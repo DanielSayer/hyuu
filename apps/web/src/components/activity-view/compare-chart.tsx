@@ -1,9 +1,9 @@
-import { formatTime } from "@/lib/utils";
 import type { Activity } from "@/utils/types/activities";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
 import { Button } from "../ui/button";
+import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
 import {
   buildCompareChartData,
   getAvailableMetrics,
@@ -218,7 +218,7 @@ function CompareChart({ activity }: { activity: Activity }) {
             axisLine={false}
             tickMargin={8}
             minTickGap={30}
-            tickFormatter={(value) => formatTime(Number(value))}
+            tickFormatter={(value) => formatSecondsToHms(Number(value))}
           />
           <YAxis
             yAxisId="left"
@@ -319,7 +319,7 @@ function CompareChartTooltip({
 
   return (
     <div className="border-border bg-background rounded-lg border px-3 py-2 shadow-md">
-      <p className="text-sm font-medium">{formatTime(row.second)}</p>
+      <p className="text-sm font-medium">{formatSecondsToHms(row.second)}</p>
       <div className="text-muted-foreground mt-1 flex flex-col gap-0.5 text-sm">
         {visibleMetricRows.map((metricRow) => (
           <div

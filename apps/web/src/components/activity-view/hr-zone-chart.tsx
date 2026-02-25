@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 
 const ZONE_CONFIG = [
   { zone: "Z1", name: "Recovery", color: "bg-gray-400", pctRange: "0 - 84%" },
@@ -40,15 +41,6 @@ const ZONE_CONFIG = [
     pctRange: "106%+",
   },
 ];
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  if (m > 0) {
-    return `${m}m${s > 0 ? ` ${s}s` : ""}`;
-  }
-  return `${s}s`;
-}
 
 interface HrZoneChartProps {
   hrZones: number[] | null;
@@ -105,7 +97,9 @@ export function HrZoneChart({ hrZones, hrZoneTimes }: HrZoneChartProps) {
                   }}
                 />
               </div>
-              <span className="text-right font-medium">{formatTime(time)}</span>
+              <span className="text-right font-medium">
+                {formatSecondsToHms(time)}
+              </span>
               <span className="text-muted-foreground text-right font-medium">
                 {pct.toFixed(1)}%
               </span>

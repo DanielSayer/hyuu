@@ -1,4 +1,5 @@
 import {
+  BarChart3Icon,
   CalendarIcon,
   ChevronRightIcon,
   HomeIcon,
@@ -68,6 +69,16 @@ function AppSidebar() {
                   render={
                     <Link to="/dashboard">
                       <HomeIcon /> Dashboard
+                    </Link>
+                  }
+                />
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={location.pathname === "/analytics"}
+                  render={
+                    <Link to="/analytics">
+                      <BarChart3Icon /> Analytics
                     </Link>
                   }
                 />

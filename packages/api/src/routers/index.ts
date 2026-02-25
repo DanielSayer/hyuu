@@ -228,6 +228,126 @@ export const appRouter = router({
       },
     };
   }),
+  analytics: protectedProcedure
+    .input(
+      z
+        .object({
+          year: z.number().int().min(1970).max(3000).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const now = new Date();
+      const selectedYear = input?.year ?? now.getUTCFullYear();
+      const yearStart = new Date(Date.UTC(selectedYear, 0, 1));
+      const yearEnd = new Date(Date.UTC(selectedYear + 1, 0, 1));
+      const currentMonthStart = new Date(Date.UTC(selectedYear, now.getUTCMonth(), 1));
+      const currentWeekStart = startOfIsoWeekUtc(now);
+      const oldestWeekStart = new Date(currentWeekStart);
+      oldestWeekStart.setUTCDate(oldestWeekStart.getUTCDate() - 7 * 12);
+
+      const [monthlyRows, weeklyRows, prRows] = await Promise.all([
+        db.query.dashboardRunRollupMonthly.findMany({
+          where: (table, operators) =>
+            operators.and(
+              operators.eq(table.userId, ctx.session.user.id),
+              operators.gte(table.monthStartLocal, yearStart),
+              operators.lt(table.monthStartLocal, yearEnd),
+            ),
+          orderBy: (table, operators) => [operators.asc(table.monthStartLocal)],
+          columns: {
+            monthStartLocal: true,
+            totalDistanceM: true,
+            totalElapsedS: true,
+            avgPaceSecPerKm: true,
+            runCount: true,
+          },
+        }),
+        db.query.dashboardRunRollupWeekly.findMany({
+          where: (table, operators) =>
+            operators.and(
+              operators.eq(table.userId, ctx.session.user.id),
+              operators.gte(table.weekStartLocal, oldestWeekStart),
+              operators.lte(table.weekStartLocal, currentWeekStart),
+            ),
+          orderBy: (table, operators) => [operators.asc(table.weekStartLocal)],
+          columns: {
+            weekStartLocal: true,
+            totalDistanceM: true,
+            avgPaceSecPerKm: true,
+          },
+        }),
+        db.query.dashboardRunPr.findMany({
+          where: (table, operators) =>
+            operators.eq(table.userId, ctx.session.user.id),
+          columns: {
+            prType: true,
+            valueSeconds: true,
+            valueDistanceM: true,
+            activityStartDate: true,
+          },
+        }),
+      ]);
+
+      const monthlyByIso = new Map(
+        monthlyRows.map((row) => [row.monthStartLocal.toISOString(), row]),
+      );
+      const monthly = Array.from({ length: 12 }, (_, monthOffset) => {
+        const monthStart = new Date(Date.UTC(selectedYear, monthOffset, 1));
+        const row = monthlyByIso.get(monthStart.toISOString());
+        return {
+          monthStart,
+          distanceM: row?.totalDistanceM ?? 0,
+          elapsedS: row?.totalElapsedS ?? 0,
+          avgPaceSecPerKm: row?.avgPaceSecPerKm ?? null,
+          runCount: row?.runCount ?? 0,
+        };
+      });
+
+      const yearlyTotals = monthly.reduce(
+        (acc, row) => ({
+          distanceM: acc.distanceM + row.distanceM,
+          elapsedS: acc.elapsedS + row.elapsedS,
+          runCount: acc.runCount + row.runCount,
+        }),
+        { distanceM: 0, elapsedS: 0, runCount: 0 },
+      );
+      const currentMonth = monthly.find(
+        (row) => row.monthStart.toISOString() === currentMonthStart.toISOString(),
+      );
+
+      const weekly = weeklyRows.map((row) => ({
+        weekStart: row.weekStartLocal,
+        distanceM: row.totalDistanceM ?? 0,
+        avgPaceSecPerKm: row.avgPaceSecPerKm,
+      }));
+
+      const prByType = new Map(prRows.map((row) => [row.prType, row]));
+
+      return {
+        year: selectedYear,
+        kpis: {
+          distanceThisYear: yearlyTotals.distanceM,
+          timeRunThisYear: yearlyTotals.elapsedS,
+          runsThisYear: yearlyTotals.runCount,
+          distanceThisMonth: currentMonth?.distanceM ?? 0,
+          timeRunThisMonth: currentMonth?.elapsedS ?? 0,
+          runsThisMonth: currentMonth?.runCount ?? 0,
+          avgMonthlyDistance:
+            monthly.length > 0 ? yearlyTotals.distanceM / monthly.length : 0,
+        },
+        monthly,
+        weekly,
+        personalRecords: {
+          fastest1km: prByType.get("fastest_1km") ?? null,
+          fastest5k: prByType.get("fastest_5k") ?? null,
+          fastest10k: prByType.get("fastest_10k") ?? null,
+          fastestHalf: prByType.get("fastest_half") ?? null,
+          fastestFull: prByType.get("fastest_full") ?? null,
+          longestRunEver: prByType.get("longest_run") ?? null,
+        },
+      };
+    }),
   trainingPlan: protectedProcedure
     .input(
       z.object({

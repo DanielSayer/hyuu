@@ -3,7 +3,7 @@ import { formatDateTime } from "@hyuu/utils/dates";
 import { formatDistanceToKm } from "@hyuu/utils/distance";
 import { formatSpeedToMinsPerKm } from "@hyuu/utils/pace";
 import { formatSecondsToHms } from "@hyuu/utils/time";
-import { Calendar } from "lucide-react";
+import { ArrowLeftIcon, Calendar } from "lucide-react";
 import { RouteMap } from "../route-map";
 import { Badge } from "../ui/badge";
 import {
@@ -23,17 +23,38 @@ import { SplitsChart } from "./splits-chart";
 import { SplitsTable } from "./splits-table";
 import { StatGroup } from "./stats-group";
 import { VelocityChart } from "./velocity-chart";
+import { Button } from "../ui/button";
+import { Link, useCanGoBack, useRouter } from "@tanstack/react-router";
 
 type ActivityViewProps = {
   activity: Activity;
 };
 
 function ActivityView({ activity }: ActivityViewProps) {
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-5xl font-bold tracking-tight">
+          {canGoBack ? (
+            <Button variant="link" onClick={() => router.history.back()}>
+              <ArrowLeftIcon className="size-4" />
+              Back
+            </Button>
+          ) : (
+            <Button
+              variant="link"
+              render={
+                <Link to="/dashboard">
+                  <ArrowLeftIcon className="size-4" />
+                  Back
+                </Link>
+              }
+            />
+          )}
+          <h1 className="text-4xl font-bold tracking-tight">
             {activity.name ?? "Morning Run"}
           </h1>
           <p className="text-muted-foreground mt-1 flex items-center gap-1.5">

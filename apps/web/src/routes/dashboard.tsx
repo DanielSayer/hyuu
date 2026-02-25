@@ -2,7 +2,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { ActivityPreview } from "@/components/dashboard/activity-preview";
+import {
+  ActivityPreview,
+  ActivityPreviewSkeleton,
+} from "@/components/dashboard/activity-preview";
 import { WeeklyDistanceCard } from "@/components/dashboard/weekly-distance-card";
 import { WeeklyPaceCard } from "@/components/dashboard/weekly-pace-card";
 import { authClient } from "@/lib/auth-client";
@@ -23,6 +26,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { LoadingWrapper } from "@/components/loading-wrapper";
 
 export const Route = createFileRoute("/dashboard")({
   component: RouteComponent,
@@ -40,12 +44,14 @@ export const Route = createFileRoute("/dashboard")({
 
 function RouteComponent() {
   const { session } = Route.useRouteContext();
-  const { data } = useQuery(trpc.dashboard.queryOptions());
-  const { data: recentActivities } = useQuery(trpc.recentActivities.queryOptions());
+  const { data, refetch } = useQuery(trpc.dashboard.queryOptions());
+  const recentActivitiesQuery = useQuery(trpc.recentActivities.queryOptions());
   const syncMutation = useMutation<IntervalsSyncResponse, Error>({
     mutationFn: syncIntervalsActivities,
     onSuccess: () => {
       toast.success("Success!", { description: "Synced activities!" });
+      refetch();
+      recentActivitiesQuery.refetch();
     },
     onError: (error) => {
       toast.error(
@@ -107,7 +113,23 @@ function RouteComponent() {
             </EmptyHeader>
           </Empty>
         </div>
-        <ActivityPreview activities={recentActivities ?? []} />
+
+        <div className="space-y-2">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Recent Activities
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              A quick look at your 5 most recent activities.
+            </p>
+          </div>
+          <LoadingWrapper
+            isLoading={recentActivitiesQuery.isLoading}
+            fallback={<ActivityPreviewSkeleton />}
+          >
+            <ActivityPreview activities={recentActivitiesQuery.data ?? []} />
+          </LoadingWrapper>
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { ClockIcon, HeartPulseIcon, TimerIcon } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Separator } from "../ui/separator";
+import { Skeleton } from "../ui/skeleton";
 
 type RecentActivity = TRPCResult<
   typeof trpc.recentActivities.queryOptions
@@ -70,9 +71,6 @@ function ActivityPreview({ activities }: { activities: RecentActivity[] }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="mb-2 text-2xl font-bold tracking-tight">
-        Recent Activities
-      </h3>
       {activities.map((activity) => {
         const path = toSvgPath(activity.routePreview?.latlngs);
 
@@ -126,7 +124,7 @@ function ActivityPreview({ activities }: { activities: RecentActivity[] }) {
                     />
                   </svg>
                 ) : (
-                  <div className="text-muted-foreground flex h-24 items-center justify-center text-xs">
+                  <div className="text-muted-foreground flex h-20 items-center justify-center text-xs">
                     Map unavailable
                   </div>
                 )}
@@ -139,4 +137,16 @@ function ActivityPreview({ activities }: { activities: RecentActivity[] }) {
   );
 }
 
-export { ActivityPreview };
+function ActivityPreviewSkeleton() {
+  return (
+    <div className="flex flex-col gap-2">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <Card key={`activity-preview-skeleton-${index}`} className="p-3">
+          <Skeleton className="h-21 w-full" />
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+export { ActivityPreview, ActivityPreviewSkeleton };

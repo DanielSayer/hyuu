@@ -2,6 +2,8 @@ import { db } from "@hyuu/db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { formatDistanceToKm } from "@hyuu/utils/distance";
+import { formatSecondsToHms } from "@hyuu/utils/time";
 import { protectedProcedure, publicProcedure, router } from "../index";
 import {
   activityMapDataSchema,
@@ -13,9 +15,13 @@ import {
   intervalSummarySchema,
   oneKmSplitTimesSecondsSchema,
 } from "../schemas/activities";
-import { formatPace, getIsoWeekNumber, parseNullableJsonb } from "../utils";
-import { formatSecondsToHms } from "@hyuu/utils/time";
-import { formatDistanceToKm } from "@hyuu/utils/distance";
+import {
+  formatPace,
+  getIsoWeekNumber,
+  parseNullableJsonb,
+  startOfIsoWeekUtc,
+  startOfMonthUtc,
+} from "../utils";
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
@@ -27,78 +33,39 @@ export const appRouter = router({
       user: ctx.session.user,
     };
   }),
-  activities: protectedProcedure
-    .input(
-      z.object({
-        limit: z.number().int().min(1).max(100).default(20),
-        cursor: z
-          .object({
-            id: z.number().int().positive(),
-            startDate: z.iso.datetime(),
-          })
-          .optional(),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      const cursorStartDate = input.cursor
-        ? new Date(input.cursor.startDate)
-        : undefined;
+  recentActivities: protectedProcedure.query(async ({ ctx }) => {
+    const rows = await db.query.intervalsActivity.findMany({
+      where: (table, operators) =>
+        operators.and(
+          operators.eq(table.userId, ctx.session.user.id),
+          operators.isNotNull(table.startDate),
+        ),
+      orderBy: (table, operators) => [
+        operators.desc(table.startDate),
+        operators.desc(table.id),
+      ],
+      limit: 5,
+      columns: {
+        id: true,
+        name: true,
+        distance: true,
+        startDate: true,
+        elapsedTime: true,
+        averageHeartrate: true,
+        mapData: true,
+      },
+    });
 
-      const rows = await db.query.intervalsActivity.findMany({
-        where: (table, operators) =>
-          operators.and(
-            operators.eq(table.userId, ctx.session.user.id),
-            operators.isNotNull(table.startDate),
-            input.cursor && cursorStartDate
-              ? operators.or(
-                  operators.lt(table.startDate, cursorStartDate),
-                  operators.and(
-                    operators.eq(table.startDate, cursorStartDate),
-                    operators.lt(table.id, input.cursor.id),
-                  ),
-                )
-              : undefined,
-          ),
-        orderBy: (table, operators) => [
-          operators.desc(table.startDate),
-          operators.desc(table.id),
-        ],
-        limit: input.limit + 1,
-        columns: {
-          id: true,
-          name: true,
-          distance: true,
-          startDate: true,
-          elapsedTime: true,
-          averageHeartrate: true,
-          mapData: true,
-        },
-      });
-
-      const hasNextPage = rows.length > input.limit;
-      const items = hasNextPage ? rows.slice(0, input.limit) : rows;
-      const lastItem = items.at(-1);
-      const nextCursor =
-        hasNextPage && lastItem?.startDate
-          ? {
-              id: lastItem.id,
-              startDate: lastItem.startDate.toISOString(),
-            }
-          : undefined;
-
-      return {
-        items: items.map((item) => ({
-          id: item.id,
-          name: item.name ?? "Untitled activity",
-          distance: item.distance ?? 0,
-          startDate: item.startDate,
-          elapsedTime: item.elapsedTime,
-          averageHeartrate: item.averageHeartrate,
-          routePreview: parseNullableJsonb(item.mapData, activityMapDataSchema),
-        })),
-        nextCursor,
-      };
-    }),
+    return rows.map((item) => ({
+      id: item.id,
+      name: item.name ?? "Untitled activity",
+      distance: item.distance ?? 0,
+      startDate: item.startDate,
+      elapsedTime: item.elapsedTime,
+      averageHeartrate: item.averageHeartrate,
+      routePreview: parseNullableJsonb(item.mapData, activityMapDataSchema),
+    }));
+  }),
   activitiesMap: protectedProcedure
     .input(
       z.object({
@@ -150,6 +117,117 @@ export const appRouter = router({
         routePreview: parseNullableJsonb(row.mapData, activityMapDataSchema),
       }));
     }),
+  dashboard: protectedProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    const currentWeekStart = startOfIsoWeekUtc(now);
+    const oldestWeekStart = new Date(currentWeekStart);
+    oldestWeekStart.setUTCDate(oldestWeekStart.getUTCDate() - 7 * 12);
+    const currentMonthStart = startOfMonthUtc(now);
+    const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+
+    const [weeklyRows, monthlyRows, prRows, latestSuccessfulSync] =
+      await Promise.all([
+      db.query.dashboardRunRollupWeekly.findMany({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, ctx.session.user.id),
+            operators.gte(table.weekStartLocal, oldestWeekStart),
+            operators.lte(table.weekStartLocal, currentWeekStart),
+          ),
+        orderBy: (table, operators) => [operators.asc(table.weekStartLocal)],
+        columns: {
+          weekStartLocal: true,
+          totalDistanceM: true,
+          avgPaceSecPerKm: true,
+        },
+      }),
+      db.query.dashboardRunRollupMonthly.findMany({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, ctx.session.user.id),
+            operators.gte(table.monthStartLocal, yearStart),
+            operators.lte(table.monthStartLocal, currentMonthStart),
+          ),
+        orderBy: (table, operators) => [operators.asc(table.monthStartLocal)],
+        columns: {
+          monthStartLocal: true,
+          totalDistanceM: true,
+          totalElapsedS: true,
+        },
+      }),
+      db.query.dashboardRunPr.findMany({
+        where: (table, operators) =>
+          operators.eq(table.userId, ctx.session.user.id),
+        columns: {
+          prType: true,
+          valueSeconds: true,
+          valueDistanceM: true,
+          activityStartDate: true,
+        },
+      }),
+      db.query.intervalsSyncLog.findFirst({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, ctx.session.user.id),
+            operators.eq(table.status, "success"),
+            operators.isNotNull(table.completedAt),
+          ),
+        orderBy: (table, operators) => [operators.desc(table.completedAt)],
+        columns: {
+          completedAt: true,
+        },
+      }),
+    ]);
+
+    const monthlyByStart = new Map(
+      monthlyRows.map((row) => [row.monthStartLocal.toISOString(), row]),
+    );
+    const currentMonth = monthlyByStart.get(currentMonthStart.toISOString());
+    const yearlyTotals = monthlyRows.reduce(
+      (acc, row) => ({
+        totalDistanceM: acc.totalDistanceM + (row.totalDistanceM ?? 0),
+        totalElapsedS: acc.totalElapsedS + (row.totalElapsedS ?? 0),
+      }),
+      { totalDistanceM: 0, totalElapsedS: 0 },
+    );
+
+    const prByType = new Map(prRows.map((row) => [row.prType, row]));
+
+    const weeklyMileage = weeklyRows.map((row) => {
+      const distanceMeters = row.totalDistanceM ?? 0;
+      return {
+        weekStart: row.weekStartLocal,
+        distanceMeters,
+      };
+    });
+
+    const paceTrend = weeklyRows.map((row) => ({
+      weekStart: row.weekStartLocal,
+      paceSecPerKm: row.avgPaceSecPerKm,
+    }));
+
+    return {
+      lastSyncedAt: latestSuccessfulSync?.completedAt ?? null,
+      kpis: {
+        distanceThisYear: yearlyTotals.totalDistanceM,
+        timeRunThisYear: yearlyTotals.totalElapsedS,
+        distanceThisMonth: currentMonth?.totalDistanceM ?? 0,
+        timeRunThisMonth: currentMonth?.totalElapsedS ?? 0,
+      },
+      personalRecords: {
+        fastest1km: prByType.get("fastest_1km")?.valueSeconds ?? 0,
+        fastest5k: prByType.get("fastest_5k")?.valueSeconds ?? 0,
+        fastest10k: prByType.get("fastest_10k")?.valueSeconds ?? 0,
+        fastestHalf: prByType.get("fastest_half")?.valueSeconds ?? 0,
+        fastestFull: prByType.get("fastest_full")?.valueSeconds ?? 0,
+        longestRunEver: prByType.get("longest_run")?.valueDistanceM ?? 0,
+      },
+      trends: {
+        weeklyMileage,
+        averagePace: paceTrend,
+      },
+    };
+  }),
   trainingPlan: protectedProcedure
     .input(
       z.object({

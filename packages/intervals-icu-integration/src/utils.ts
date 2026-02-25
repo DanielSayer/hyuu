@@ -39,6 +39,52 @@ function toDateOnlyString(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+const RUN_ACTIVITY_TYPES = new Set([
+  "run",
+  "trailrun",
+  "treadmillrun",
+  "virtualrun",
+]);
+
+function normalizeActivityType(type: string) {
+  return type.replaceAll(/[\s_-]/g, "").toLowerCase();
+}
+
+function isRunActivityType(type: string | null | undefined) {
+  if (typeof type !== "string" || type.length === 0) {
+    return false;
+  }
+  return RUN_ACTIVITY_TYPES.has(normalizeActivityType(type));
+}
+
+function computePaceSecPerKm({
+  elapsedSeconds,
+  distanceMeters,
+}: {
+  elapsedSeconds: number;
+  distanceMeters: number;
+}) {
+  if (elapsedSeconds <= 0 || distanceMeters <= 0) {
+    return null;
+  }
+  return elapsedSeconds / (distanceMeters / 1000);
+}
+
+function startOfIsoWeekUtc(date: Date) {
+  const start = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  const day = start.getUTCDay();
+  const offsetToMonday = day === 0 ? -6 : 1 - day;
+  start.setUTCDate(start.getUTCDate() + offsetToMonday);
+  start.setUTCHours(0, 0, 0, 0);
+  return start;
+}
+
+function startOfMonthUtc(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
 const distanceStreamDataSchema = z.array(z.number().finite());
 
 const BEST_EFFORT_TARGET_DISTANCES_METERS = [
@@ -203,8 +249,12 @@ function computeOneKmSplitTimesFromDistanceStream(
 
 export {
   BEST_EFFORT_TARGET_DISTANCES_METERS,
+  computePaceSecPerKm,
   computeBestEffortsFromDistanceStream,
   computeOneKmSplitTimesFromDistanceStream,
+  isRunActivityType,
+  startOfIsoWeekUtc,
+  startOfMonthUtc,
   toDateOrNull,
   toIntOrNull,
   toNumberOrNull,

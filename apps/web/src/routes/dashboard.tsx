@@ -1,25 +1,28 @@
-import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useMemo, useRef } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { ActivityCard } from "@/components/activity-card";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ActivityPreview } from "@/components/dashboard/activity-preview";
+import { WeeklyDistanceCard } from "@/components/dashboard/weekly-distance-card";
+import { WeeklyPaceCard } from "@/components/dashboard/weekly-pace-card";
 import { authClient } from "@/lib/auth-client";
 import {
   syncIntervalsActivities,
   type IntervalsSyncResponse,
 } from "@/lib/intervals/actions";
-import { getErrorMessage } from "@/lib/utils";
+import { cn, getErrorMessage, getGreeting } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
+import { Button } from "@/components/ui/button";
+import { ArrowUpRightIcon, BedIcon, RefreshCcwIcon } from "lucide-react";
+import { formatDateTime } from "@hyuu/utils/dates";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
 export const Route = createFileRoute("/dashboard")({
   component: RouteComponent,
@@ -37,13 +40,12 @@ export const Route = createFileRoute("/dashboard")({
 
 function RouteComponent() {
   const { session } = Route.useRouteContext();
-  const feedScrollRef = useRef<HTMLDivElement | null>(null);
-
+  const { data } = useQuery(trpc.dashboard.queryOptions());
+  const { data: recentActivities } = useQuery(trpc.recentActivities.queryOptions());
   const syncMutation = useMutation<IntervalsSyncResponse, Error>({
     mutationFn: syncIntervalsActivities,
-    onSuccess: (data) => {
-      const count = data.eventCount ?? 0;
-      toast.success(`Synced ${count} Intervals activities.`);
+    onSuccess: () => {
+      toast.success("Success!", { description: "Synced activities!" });
     },
     onError: (error) => {
       toast.error(
@@ -52,196 +54,61 @@ function RouteComponent() {
     },
   });
 
-  const canSync = !syncMutation.isPending;
-
-  const activitiesQuery = useInfiniteQuery(
-    trpc.activities.infiniteQueryOptions(
-      { limit: 20 },
-      {
-        getNextPageParam: (lastPage) => lastPage.nextCursor,
-      },
-    ),
-  );
-
-  const activities = useMemo(
-    () =>
-      (activitiesQuery.data?.pages.flatMap((page) => page.items) ?? []).sort(
-        (a, b) => {
-          const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
-          const bDate = b.startDate ? new Date(b.startDate).getTime() : 0;
-          if (aDate !== bDate) {
-            return bDate - aDate;
-          }
-          return b.id - a.id;
-        },
-      ),
-    [activitiesQuery.data],
-  );
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = activitiesQuery;
-
-  const rowVirtualizer = useVirtualizer({
-    count: activities.length,
-    getScrollElement: () => feedScrollRef.current,
-    estimateSize: () => 330,
-    overscan: 6,
-  });
-  const virtualItems = rowVirtualizer.getVirtualItems();
-
-  useEffect(() => {
-    const lastItem = virtualItems[virtualItems.length - 1];
-    if (!lastItem) {
-      return;
-    }
-    if (
-      lastItem.index >= activities.length - 5 &&
-      hasNextPage &&
-      !isFetchingNextPage
-    ) {
-      fetchNextPage();
-    }
-  }, [
-    activities.length,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    virtualItems,
-  ]);
-
   const handleSync = () => {
     syncMutation.mutate();
   };
 
-  const renderSyncState = () => {
-    if (syncMutation.isPending) {
-      return (
-        <p className="text-muted-foreground text-sm">
-          Syncing Intervals data...
-        </p>
-      );
-    }
-
-    if (syncMutation.isError) {
-      return (
-        <p className="text-destructive text-sm">
-          {getErrorMessage(
-            syncMutation.error,
-            "Failed to sync Intervals activities.",
-          )}
-        </p>
-      );
-    }
-
-    if (syncMutation.data) {
-      return (
-        <p className="text-muted-foreground text-sm">
-          Synced {syncMutation.data.savedActivityCount ?? 0} activities for
-          athlete {syncMutation.data.athleteId ?? "Unknown"}.
-        </p>
-      );
-    }
-
-    return (
-      <p className="text-muted-foreground text-sm">
-        Uses server-side Basic Auth credentials and stores normalized Intervals
-        activity data.
-      </p>
-    );
-  };
-
   return (
-    <div className="container mx-auto max-w-3xl space-y-4 px-4 py-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-muted-foreground text-sm">
-          Welcome {session.data?.user.name}
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">
+          {getGreeting(session.data?.user.name ?? "")}
+        </h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Intervals Activity Sync</CardTitle>
-          <CardDescription>
-            Manually fetch recent events and activity data from Intervals.icu.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button onClick={handleSync} disabled={!canSync}>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-xs">
             {syncMutation.isPending
               ? "Syncing..."
-              : "Sync Intervals Activities"}
+              : data?.lastSyncedAt
+                ? `Last synced: ${formatDateTime(data.lastSyncedAt)}`
+                : "Never synced"}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={syncMutation.isPending}
+            onClick={handleSync}
+          >
+            <RefreshCcwIcon
+              className={cn(syncMutation.isPending && "animate-spin")}
+            />
+            <span className="sr-only">Sync Intervals Data</span>
           </Button>
-          {renderSyncState()}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Activities</CardTitle>
-          <CardDescription>
-            Infinite scroll using TanStack Query + tRPC.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {activitiesQuery.isLoading ? (
-            <p className="text-muted-foreground text-sm">
-              Loading activities...
-            </p>
-          ) : activitiesQuery.isError ? (
-            <p className="text-destructive text-sm">
-              {getErrorMessage(
-                activitiesQuery.error,
-                "Failed to load activities.",
-              )}
-            </p>
-          ) : activities.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No synced activities yet.
-            </p>
-          ) : (
-            <div
-              ref={feedScrollRef}
-              className="bg-background/30 h-[70vh] overflow-y-auto rounded-md border px-2 py-2"
-            >
-              <div
-                style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
-                className="relative w-full"
-              >
-                {virtualItems.map((virtualItem) => {
-                  const activity = activities[virtualItem.index];
-                  if (!activity) {
-                    return null;
-                  }
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <WeeklyDistanceCard weeklyMileage={data?.trends.weeklyMileage ?? []} />
+        <WeeklyPaceCard weeklyPace={data?.trends.averagePace ?? []} />
+      </div>
 
-                  return (
-                    <div
-                      key={activity.id}
-                      data-index={virtualItem.index}
-                      ref={rowVirtualizer.measureElement}
-                      className="absolute top-0 left-0 w-full px-1 py-1"
-                      style={{
-                        transform: `translateY(${virtualItem.start}px)`,
-                      }}
-                    >
-                      <Link
-                        to="/activity/$activityId"
-                        params={{ activityId: activity.id }}
-                      >
-                        <ActivityCard activity={activity} />
-                      </Link>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {activitiesQuery.isFetchingNextPage ? (
-            <p className="text-muted-foreground text-sm">
-              Loading more activities...
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold tracking-tight">Today</h2>
+          <Empty className="bg-accent/20 py-40">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <BedIcon />
+              </EmptyMedia>
+              <EmptyTitle>No Workouts Scheduled for Today</EmptyTitle>
+              <EmptyDescription>
+                Today is a rest day. Enjoy your day off!
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </div>
+        <ActivityPreview activities={recentActivities ?? []} />
+      </div>
     </div>
   );
 }

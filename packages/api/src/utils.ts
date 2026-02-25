@@ -36,6 +36,39 @@ export function formatPace(
   return `${minutes}:${String(seconds).padStart(2, "0")}/km`;
 }
 
+export function formatPaceFromSecondsPerKm(
+  secondsPerKm: number | null,
+): string {
+  if (secondsPerKm === null || secondsPerKm <= 0) {
+    return "N/A";
+  }
+
+  let minutes = Math.floor(secondsPerKm / 60);
+  let seconds = Math.round(secondsPerKm % 60);
+
+  if (seconds === 60) {
+    minutes += 1;
+    seconds = 0;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}/km`;
+}
+
+export function startOfMonthUtc(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+export function startOfIsoWeekUtc(date: Date): Date {
+  const start = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  const day = start.getUTCDay();
+  const offsetToMonday = day === 0 ? -6 : 1 - day;
+  start.setUTCDate(start.getUTCDate() + offsetToMonday);
+  start.setUTCHours(0, 0, 0, 0);
+  return start;
+}
+
 export function getIsoWeekNumber(date: Date): number {
   const target = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),

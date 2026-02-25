@@ -25,7 +25,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { LoadingWrapper } from "./loading-wrapper";
 import { Skeleton } from "./ui/skeleton";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 
 type AppLayoutProps = {
   children: ReactNode;
@@ -47,6 +47,7 @@ function AppLayout({ children }: AppLayoutProps) {
 
 function AppSidebar() {
   const { isPending, data: session } = authClient.useSession();
+  const location = useLocation();
 
   return (
     <Sidebar variant="inset">
@@ -62,12 +63,18 @@ function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <HomeIcon /> Dashboard
-                </SidebarMenuButton>
+                <SidebarMenuButton
+                  isActive={location.pathname === "/dashboard"}
+                  render={
+                    <Link to="/dashboard">
+                      <HomeIcon /> Dashboard
+                    </Link>
+                  }
+                />
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
+                  isActive={location.pathname === "/training-plan"}
                   render={
                     <Link to="/training-plan">
                       <CalendarIcon /> Training Plan

@@ -3,6 +3,7 @@ export { mapIntervalsErrorToStatusCode } from "./application/map-error-to-status
 export { buildInitialSyncWindow, buildIncrementalSyncWindow } from "./application/policies/sync-window-policy";
 export { connectAthlete } from "./application/services/connect-athlete";
 export { connectAthleteAndBootstrapActivities } from "./application/services/connect-athlete-and-bootstrap-activities";
+export { backfillDashboardRollups } from "./application/services/backfill-dashboard-rollups";
 export { getConnectionStatus } from "./application/services/get-connection-status";
 export { syncActivitiesIncremental } from "./application/services/sync-activities-incremental";
 export { testConnection } from "./application/services/test-connection";

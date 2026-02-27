@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { dashboardGoal, db, userSettings } from "@hyuu/db";
+import { db, goal, goalStreak, userSettings } from "@hyuu/db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -19,10 +19,11 @@ import {
 import {
   archiveGoalInputSchema,
   createGoalInputSchema,
+  goalCadenceSchema,
   goalTypeSchema,
   updateGoalInputSchema,
 } from "../schemas/goals";
-import type { GoalType } from "../schemas/goals";
+import type { GoalCadence, GoalType } from "../schemas/goals";
 import {
   formatPace,
   getIsoWeekNumber,
@@ -61,19 +62,217 @@ function validateGoalTargetValue(goalType: GoalType, targetValue: number) {
       message: "targetValue must be a positive number.",
     });
   }
-  if ((goalType === "activity_count" || goalType === "streak") && !Number.isInteger(targetValue)) {
+  if (goalType === "frequency" && !Number.isInteger(targetValue)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "activity_count and streak targets must be whole numbers.",
+      message: "frequency targets must be whole numbers.",
     });
   }
-  if (goalType === "streak" && (targetValue < 1 || targetValue > 7)) {
+  if (goalType === "frequency" && (targetValue < 1 || targetValue > 31)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "streak target must be between 1 and 7 days.",
+      message: "frequency target must be between 1 and 31 runs.",
     });
   }
   return targetValue;
+}
+
+function isGoalCompleted(
+  goalType: GoalType,
+  currentValue: number,
+  targetValue: number,
+) {
+  if (goalType === "pace") {
+    return currentValue > 0 && currentValue <= targetValue;
+  }
+  return currentValue >= targetValue;
+}
+
+function getGoalProgressRatio(
+  goalType: GoalType,
+  currentValue: number,
+  targetValue: number,
+) {
+  if (targetValue <= 0) {
+    return 0;
+  }
+  if (goalType === "pace") {
+    if (currentValue <= 0) {
+      return 0;
+    }
+    return targetValue / currentValue;
+  }
+  return currentValue / targetValue;
+}
+
+function addWeeks(date: Date, weeks: number) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + weeks * 7);
+  return next;
+}
+
+async function loadActiveWeeklyFrequencyStreakGoalId(userId: string) {
+  const streak = await db.query.goalStreak.findFirst({
+    where: (table, operators) =>
+      operators.and(
+        operators.eq(table.userId, userId),
+        operators.isNull(table.endedAt),
+      ),
+    columns: {
+      goalId: true,
+    },
+    with: {
+      goal: {
+        columns: {
+          id: true,
+          goalType: true,
+          cadence: true,
+          abandonedAt: true,
+        },
+      },
+    },
+  });
+  if (!streak?.goal) {
+    return null;
+  }
+  if (streak.goal.abandonedAt) {
+    return null;
+  }
+  if (
+    streak.goal.goalType !== "frequency" ||
+    streak.goal.cadence !== "weekly"
+  ) {
+    return null;
+  }
+  return streak.goalId;
+}
+
+async function assertCanEnableStreak({
+  userId,
+  goalId,
+}: {
+  userId: string;
+  goalId: number;
+}) {
+  const existing = await db.query.goalStreak.findFirst({
+    where: (table, operators) =>
+      operators.and(
+        operators.eq(table.userId, userId),
+        operators.isNull(table.endedAt),
+      ),
+    columns: {
+      goalId: true,
+    },
+  });
+  if (existing && existing.goalId !== goalId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Only one active weekly frequency streak is allowed.",
+    });
+  }
+}
+
+async function upsertGoalStreak({
+  userId,
+  goalId,
+}: {
+  userId: string;
+  goalId: number;
+}) {
+  const existing = await db.query.goalStreak.findFirst({
+    where: (table, operators) => operators.eq(table.goalId, goalId),
+    columns: {
+      id: true,
+      endedAt: true,
+    },
+  });
+  if (!existing) {
+    await db.insert(goalStreak).values({
+      goalId,
+      userId,
+    });
+    return;
+  }
+  if (existing.endedAt === null) {
+    return;
+  }
+  await db
+    .update(goalStreak)
+    .set({
+      endedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(goalStreak.id, existing.id));
+}
+
+async function endGoalStreak({ goalId }: { goalId: number }) {
+  const existing = await db.query.goalStreak.findFirst({
+    where: (table, operators) =>
+      operators.and(
+        operators.eq(table.goalId, goalId),
+        operators.isNull(table.endedAt),
+      ),
+    columns: {
+      id: true,
+    },
+  });
+  if (!existing) {
+    return;
+  }
+  await db
+    .update(goalStreak)
+    .set({
+      endedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(goalStreak.id, existing.id));
+}
+
+async function computeCurrentWeeklyStreakWeeks({
+  goalId,
+  currentWeekStart,
+  includeCurrentWeek,
+}: {
+  goalId: number;
+  currentWeekStart: Date;
+  includeCurrentWeek: boolean;
+}) {
+  const rows = await db.query.goalProgress.findMany({
+    where: (table, operators) =>
+      operators.and(
+        operators.eq(table.goalId, goalId),
+        operators.eq(table.cadence, "weekly"),
+        operators.lte(table.periodStartLocal, currentWeekStart),
+      ),
+    orderBy: (table, operators) => [operators.desc(table.periodStartLocal)],
+    limit: 156,
+    columns: {
+      periodStartLocal: true,
+      completedAt: true,
+    },
+  });
+  const byWeek = new Map(
+    rows.map((row) => [
+      row.periodStartLocal.toISOString(),
+      row.completedAt !== null,
+    ]),
+  );
+  const currentWeekKey = currentWeekStart.toISOString();
+  let scanWeek =
+    byWeek.get(currentWeekKey) || includeCurrentWeek
+      ? currentWeekStart
+      : addWeeks(currentWeekStart, -1);
+  let streakWeeks = 0;
+  while (streakWeeks < 156) {
+    const key = scanWeek.toISOString();
+    const completed = byWeek.get(key);
+    if (!completed) {
+      break;
+    }
+    streakWeeks += 1;
+    scanWeek = addWeeks(scanWeek, -1);
+  }
+  return streakWeeks;
 }
 
 async function ensureUserWeekStartDay(userId: string): Promise<0 | 1> {
@@ -84,30 +283,39 @@ async function ensureUserWeekStartDay(userId: string): Promise<0 | 1> {
   if (settings) {
     return toWeekStartDay(settings.weekStartDay);
   }
-  await db.insert(userSettings).values({
-    userId,
-    weekStartDay: 1,
-  }).onConflictDoNothing();
+  await db
+    .insert(userSettings)
+    .values({
+      userId,
+      weekStartDay: 1,
+    })
+    .onConflictDoNothing();
   return 1;
 }
 
-async function computeWeekGoalMetrics({
+async function computePeriodGoalMetrics({
   userId,
-  weekStart,
+  periodStart,
+  cadence,
 }: {
   userId: string;
-  weekStart: Date;
+  periodStart: Date;
+  cadence: GoalCadence;
 }) {
-  const weekEnd = new Date(weekStart);
-  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+  const periodEnd = new Date(periodStart);
+  if (cadence === "weekly") {
+    periodEnd.setUTCDate(periodEnd.getUTCDate() + 7);
+  } else {
+    periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
+  }
 
   const rows = await db.query.intervalsActivity.findMany({
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
         operators.isNotNull(table.startDate),
-        operators.gte(table.startDate, weekStart),
-        operators.lt(table.startDate, weekEnd),
+        operators.gte(table.startDate, periodStart),
+        operators.lt(table.startDate, periodEnd),
       ),
     columns: {
       type: true,
@@ -120,7 +328,6 @@ async function computeWeekGoalMetrics({
   let distanceMeters = 0;
   let elapsedSeconds = 0;
   let runCount = 0;
-  const activeDayKeys = new Set<string>();
 
   for (const row of rows) {
     if (!isRunActivityType(row.type)) {
@@ -129,16 +336,15 @@ async function computeWeekGoalMetrics({
     runCount += 1;
     distanceMeters += row.distance ?? 0;
     elapsedSeconds += row.elapsedTime ?? 0;
-    if (row.startDate) {
-      activeDayKeys.add(row.startDate.toISOString().slice(0, 10));
-    }
   }
 
   return {
     distance: distanceMeters,
-    time: elapsedSeconds,
-    activity_count: runCount,
-    streak: activeDayKeys.size,
+    frequency: runCount,
+    pace:
+      distanceMeters > 0 && elapsedSeconds > 0
+        ? elapsedSeconds / (distanceMeters / 1000)
+        : 0,
   };
 }
 
@@ -151,72 +357,246 @@ async function loadGoalsWithProgress({
 }) {
   const weekStartDay = await ensureUserWeekStartDay(userId);
   const weekStart = startOfWeekUtc(now, weekStartDay);
-  const activeGoals = await db.query.dashboardGoal.findMany({
+  const monthStart = startOfMonthUtc(now);
+  const activeStreakGoalId =
+    await loadActiveWeeklyFrequencyStreakGoalId(userId);
+  const activeGoals = await db.query.goal.findMany({
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
-        operators.eq(table.isActive, true),
+        operators.isNull(table.abandonedAt),
       ),
     orderBy: (table, operators) => [operators.asc(table.id)],
     columns: {
       id: true,
       goalType: true,
+      cadence: true,
       targetValue: true,
     },
   });
   if (activeGoals.length === 0) {
-    return { goals: [], weekStart, weekStartDay };
+    const archivedGoals = await db.query.goal.findMany({
+      where: (table, operators) =>
+        operators.and(
+          operators.eq(table.userId, userId),
+          operators.isNotNull(table.abandonedAt),
+        ),
+      orderBy: (table, operators) => [operators.desc(table.abandonedAt)],
+      limit: 50,
+      columns: {
+        id: true,
+        goalType: true,
+        cadence: true,
+        targetValue: true,
+        abandonedAt: true,
+      },
+    });
+    return {
+      goals: [],
+      history: archivedGoals.map((row) => ({
+        kind: "archived" as const,
+        goalId: row.id,
+        goalType: row.goalType,
+        cadence: row.cadence,
+        targetValue: row.targetValue,
+        abandonedAt: row.abandonedAt,
+      })),
+      weekStart,
+      monthStart,
+      weekStartDay,
+    };
   }
 
-  const progressRows = await db.query.dashboardGoalProgressWeekly.findMany({
+  const progressRows = await db.query.goalProgress.findMany({
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
-        operators.eq(table.weekStartLocal, weekStart),
+        operators.or(
+          operators.and(
+            operators.eq(table.cadence, "weekly"),
+            operators.eq(table.periodStartLocal, weekStart),
+          ),
+          operators.and(
+            operators.eq(table.cadence, "monthly"),
+            operators.eq(table.periodStartLocal, monthStart),
+          ),
+        ),
       ),
     columns: {
       goalId: true,
+      cadence: true,
       currentValue: true,
+      completedAt: true,
     },
   });
-  const progressByGoalId = new Map(
-    progressRows.map((row) => [row.goalId, row.currentValue]),
+  const progressByGoalPeriod = new Map(
+    progressRows.map((row) => [
+      `${row.goalId}:${row.cadence}`,
+      {
+        currentValue: row.currentValue,
+        completedAt: row.completedAt,
+      },
+    ]),
   );
-  const missingGoalTypes = activeGoals
-    .filter((goal) => !progressByGoalId.has(goal.id))
-    .flatMap((goal) => {
-      const parsed = goalTypeSchema.safeParse(goal.goalType);
-      return parsed.success ? [parsed.data] : [];
-    });
-  const metrics =
-    missingGoalTypes.length > 0
-      ? await computeWeekGoalMetrics({ userId, weekStart })
+  const missingGoals = activeGoals.filter(
+    (activeGoal) =>
+      !progressByGoalPeriod.has(`${activeGoal.id}:${activeGoal.cadence}`),
+  );
+  const missingMetrics = missingGoals.length;
+
+  const weeklyMetrics =
+    missingMetrics > 0
+      ? await computePeriodGoalMetrics({
+          userId,
+          periodStart: weekStart,
+          cadence: "weekly",
+        })
+      : null;
+  const monthlyMetrics =
+    missingMetrics > 0
+      ? await computePeriodGoalMetrics({
+          userId,
+          periodStart: monthStart,
+          cadence: "monthly",
+        })
       : null;
 
-  const goals = activeGoals.flatMap((goal) => {
-    const parsedGoalType = goalTypeSchema.safeParse(goal.goalType);
-    if (!parsedGoalType.success) {
-      return [];
-    }
+  const goals = await Promise.all(
+    activeGoals.flatMap((goal) => {
+      const parsedGoalType = goalTypeSchema.safeParse(goal.goalType);
+      const parsedCadence = goalCadenceSchema.safeParse(goal.cadence);
+      if (!parsedGoalType.success || !parsedCadence.success) {
+        return [];
+      }
 
-    const goalType = parsedGoalType.data;
-    const currentValue =
-      progressByGoalId.get(goal.id) ?? (metrics ? metrics[goalType] : 0);
-    const targetValue = goal.targetValue;
-    const progressRatio = targetValue > 0 ? currentValue / targetValue : 0;
-    return [
-      {
-        id: goal.id,
+      const goalType = parsedGoalType.data;
+      const cadence = parsedCadence.data;
+      const progressRow = progressByGoalPeriod.get(`${goal.id}:${cadence}`);
+      const fallbackMetrics =
+        cadence === "weekly" ? weeklyMetrics : monthlyMetrics;
+      const currentValue =
+        progressRow?.currentValue ??
+        (fallbackMetrics ? fallbackMetrics[goalType] : 0);
+      const targetValue = goal.targetValue;
+      const completedAt =
+        progressRow?.completedAt ??
+        (isGoalCompleted(goalType, currentValue, targetValue) ? now : null);
+      const progressRatio = getGoalProgressRatio(
         goalType,
-        targetValue,
         currentValue,
-        progressRatio,
-        isComplete: currentValue >= targetValue,
-      },
-    ];
+        targetValue,
+      );
+      const isStreakGoal =
+        activeStreakGoalId !== null &&
+        goal.id === activeStreakGoalId &&
+        goalType === "frequency" &&
+        cadence === "weekly";
+      return [
+        (async () => ({
+          id: goal.id,
+          goalType,
+          cadence,
+          targetValue,
+          currentValue,
+          progressRatio,
+          completedAt,
+          isStreakGoal,
+          streak: isStreakGoal
+            ? {
+                currentWeeks: await computeCurrentWeeklyStreakWeeks({
+                  goalId: goal.id,
+                  currentWeekStart: weekStart,
+                  includeCurrentWeek: completedAt !== null,
+                }),
+                periodRuns: currentValue,
+                periodTargetRuns: targetValue,
+              }
+            : null,
+        }))(),
+      ];
+    }),
+  );
+
+  goals.sort((a, b) => {
+    if (a.isStreakGoal !== b.isStreakGoal) {
+      return a.isStreakGoal ? -1 : 1;
+    }
+    if (a.progressRatio !== b.progressRatio) {
+      return a.progressRatio - b.progressRatio;
+    }
+    return a.id - b.id;
   });
 
-  return { goals, weekStart, weekStartDay };
+  const historyProgressRows = await db.query.goalProgress.findMany({
+    where: (table, operators) => operators.eq(table.userId, userId),
+    orderBy: (table, operators) => [operators.desc(table.periodStartLocal)],
+    limit: 200,
+    columns: {
+      goalId: true,
+      cadence: true,
+      periodStartLocal: true,
+      currentValue: true,
+      completedAt: true,
+    },
+    with: {
+      goal: {
+        columns: {
+          goalType: true,
+          targetValue: true,
+        },
+      },
+    },
+  });
+  const failedHistory = historyProgressRows
+    .filter((row) => {
+      if (row.completedAt !== null) {
+        return false;
+      }
+      const periodBoundary = row.cadence === "weekly" ? weekStart : monthStart;
+      return row.periodStartLocal < periodBoundary;
+    })
+    .map((row) => ({
+      kind: "failed" as const,
+      goalId: row.goalId,
+      goalType: row.goal.goalType,
+      cadence: row.cadence,
+      periodStartLocal: row.periodStartLocal,
+      targetValue: row.goal.targetValue,
+      currentValue: row.currentValue,
+      completedAt: row.completedAt,
+    }));
+  const archivedGoals = await db.query.goal.findMany({
+    where: (table, operators) =>
+      operators.and(
+        operators.eq(table.userId, userId),
+        operators.isNotNull(table.abandonedAt),
+      ),
+    orderBy: (table, operators) => [operators.desc(table.abandonedAt)],
+    limit: 50,
+    columns: {
+      id: true,
+      goalType: true,
+      cadence: true,
+      targetValue: true,
+      abandonedAt: true,
+    },
+  });
+  const archivedHistory = archivedGoals.map((row) => ({
+    kind: "archived" as const,
+    goalId: row.id,
+    goalType: row.goalType,
+    cadence: row.cadence,
+    targetValue: row.targetValue,
+    abandonedAt: row.abandonedAt,
+  }));
+
+  return {
+    goals,
+    history: [...failedHistory, ...archivedHistory],
+    weekStart,
+    monthStart,
+    weekStartDay,
+  };
 }
 
 export const appRouter = router({
@@ -272,6 +652,7 @@ export const appRouter = router({
         weekStart: data.weekStart,
         weekStartDay: data.weekStartDay,
         goals: data.goals,
+        history: data.history,
       };
     }),
     create: protectedProcedure
@@ -281,38 +662,72 @@ export const appRouter = router({
           input.goalType,
           input.targetValue,
         );
+        const shouldTrackStreak = input.trackStreak === true;
+        if (
+          shouldTrackStreak &&
+          (input.goalType !== "frequency" || input.cadence !== "weekly")
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Streak is only supported for weekly frequency goals.",
+          });
+        }
         const now = new Date();
-        const existing = await db.query.dashboardGoal.findFirst({
+        const existing = await db.query.goal.findFirst({
           where: (table, operators) =>
             operators.and(
               operators.eq(table.userId, ctx.session.user.id),
               operators.eq(table.goalType, input.goalType),
+              operators.eq(table.cadence, input.cadence),
             ),
           columns: { id: true },
         });
+        let goalId: number;
 
         if (existing) {
+          goalId = existing.id;
           await db
-            .update(dashboardGoal)
+            .update(goal)
             .set({
               targetValue,
-              isActive: true,
+              abandonedAt: null,
               updatedAt: now,
             })
             .where(
               and(
-                eq(dashboardGoal.id, existing.id),
-                eq(dashboardGoal.userId, ctx.session.user.id),
+                eq(goal.id, existing.id),
+                eq(goal.userId, ctx.session.user.id),
               ),
             );
         } else {
-          await db.insert(dashboardGoal).values({
+          const [createdGoal] = await db
+            .insert(goal)
+            .values({
+              userId: ctx.session.user.id,
+              goalType: input.goalType,
+              cadence: input.cadence,
+              targetValue,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning({ id: goal.id });
+          if (!createdGoal) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to create goal.",
+            });
+          }
+          goalId = createdGoal.id;
+        }
+
+        if (shouldTrackStreak) {
+          await assertCanEnableStreak({
             userId: ctx.session.user.id,
-            goalType: input.goalType,
-            targetValue,
-            isActive: true,
-            createdAt: now,
-            updatedAt: now,
+            goalId,
+          });
+          await upsertGoalStreak({
+            userId: ctx.session.user.id,
+            goalId,
           });
         }
 
@@ -324,7 +739,7 @@ export const appRouter = router({
     update: protectedProcedure
       .input(updateGoalInputSchema)
       .mutation(async ({ ctx, input }) => {
-        const existing = await db.query.dashboardGoal.findFirst({
+        const existing = await db.query.goal.findFirst({
           where: (table, operators) =>
             operators.and(
               operators.eq(table.id, input.id),
@@ -350,16 +765,13 @@ export const appRouter = router({
           input.targetValue,
         );
         await db
-          .update(dashboardGoal)
+          .update(goal)
           .set({
             targetValue,
             updatedAt: new Date(),
           })
           .where(
-            and(
-              eq(dashboardGoal.id, input.id),
-              eq(dashboardGoal.userId, ctx.session.user.id),
-            ),
+            and(eq(goal.id, input.id), eq(goal.userId, ctx.session.user.id)),
           );
 
         return loadGoalsWithProgress({
@@ -371,24 +783,22 @@ export const appRouter = router({
       .input(archiveGoalInputSchema)
       .mutation(async ({ ctx, input }) => {
         const [archived] = await db
-          .update(dashboardGoal)
+          .update(goal)
           .set({
-            isActive: false,
+            abandonedAt: new Date(),
             updatedAt: new Date(),
           })
           .where(
-            and(
-              eq(dashboardGoal.id, input.id),
-              eq(dashboardGoal.userId, ctx.session.user.id),
-            ),
+            and(eq(goal.id, input.id), eq(goal.userId, ctx.session.user.id)),
           )
-          .returning({ id: dashboardGoal.id });
+          .returning({ id: goal.id });
         if (!archived) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Goal not found.",
           });
         }
+        await endGoalStreak({ goalId: input.id });
         return {
           success: true,
         };
@@ -459,58 +869,58 @@ export const appRouter = router({
     });
     const [weeklyRows, monthlyRows, prRows, latestSuccessfulSync, goalsData] =
       await Promise.all([
-      db.query.dashboardRunRollupWeekly.findMany({
-        where: (table, operators) =>
-          operators.and(
+        db.query.dashboardRunRollupWeekly.findMany({
+          where: (table, operators) =>
+            operators.and(
+              operators.eq(table.userId, ctx.session.user.id),
+              operators.gte(table.weekStartLocal, oldestWeekStart),
+              operators.lte(table.weekStartLocal, currentWeekStart),
+            ),
+          orderBy: (table, operators) => [operators.asc(table.weekStartLocal)],
+          columns: {
+            weekStartLocal: true,
+            totalDistanceM: true,
+            avgPaceSecPerKm: true,
+          },
+        }),
+        db.query.dashboardRunRollupMonthly.findMany({
+          where: (table, operators) =>
+            operators.and(
+              operators.eq(table.userId, ctx.session.user.id),
+              operators.gte(table.monthStartLocal, yearStart),
+              operators.lte(table.monthStartLocal, currentMonthStart),
+            ),
+          orderBy: (table, operators) => [operators.asc(table.monthStartLocal)],
+          columns: {
+            monthStartLocal: true,
+            totalDistanceM: true,
+            totalElapsedS: true,
+          },
+        }),
+        db.query.dashboardRunPr.findMany({
+          where: (table, operators) =>
             operators.eq(table.userId, ctx.session.user.id),
-            operators.gte(table.weekStartLocal, oldestWeekStart),
-            operators.lte(table.weekStartLocal, currentWeekStart),
-          ),
-        orderBy: (table, operators) => [operators.asc(table.weekStartLocal)],
-        columns: {
-          weekStartLocal: true,
-          totalDistanceM: true,
-          avgPaceSecPerKm: true,
-        },
-      }),
-      db.query.dashboardRunRollupMonthly.findMany({
-        where: (table, operators) =>
-          operators.and(
-            operators.eq(table.userId, ctx.session.user.id),
-            operators.gte(table.monthStartLocal, yearStart),
-            operators.lte(table.monthStartLocal, currentMonthStart),
-          ),
-        orderBy: (table, operators) => [operators.asc(table.monthStartLocal)],
-        columns: {
-          monthStartLocal: true,
-          totalDistanceM: true,
-          totalElapsedS: true,
-        },
-      }),
-      db.query.dashboardRunPr.findMany({
-        where: (table, operators) =>
-          operators.eq(table.userId, ctx.session.user.id),
-        columns: {
-          prType: true,
-          valueSeconds: true,
-          valueDistanceM: true,
-          activityStartDate: true,
-        },
-      }),
-      db.query.intervalsSyncLog.findFirst({
-        where: (table, operators) =>
-          operators.and(
-            operators.eq(table.userId, ctx.session.user.id),
-            operators.eq(table.status, "success"),
-            operators.isNotNull(table.completedAt),
-          ),
-        orderBy: (table, operators) => [operators.desc(table.completedAt)],
-        columns: {
-          completedAt: true,
-        },
-      }),
-      goalsDataPromise,
-    ]);
+          columns: {
+            prType: true,
+            valueSeconds: true,
+            valueDistanceM: true,
+            activityStartDate: true,
+          },
+        }),
+        db.query.intervalsSyncLog.findFirst({
+          where: (table, operators) =>
+            operators.and(
+              operators.eq(table.userId, ctx.session.user.id),
+              operators.eq(table.status, "success"),
+              operators.isNotNull(table.completedAt),
+            ),
+          orderBy: (table, operators) => [operators.desc(table.completedAt)],
+          columns: {
+            completedAt: true,
+          },
+        }),
+        goalsDataPromise,
+      ]);
 
     const monthlyByStart = new Map(
       monthlyRows.map((row) => [row.monthStartLocal.toISOString(), row]),
@@ -575,7 +985,9 @@ export const appRouter = router({
       const selectedYear = input?.year ?? now.getUTCFullYear();
       const yearStart = new Date(Date.UTC(selectedYear, 0, 1));
       const yearEnd = new Date(Date.UTC(selectedYear + 1, 0, 1));
-      const currentMonthStart = new Date(Date.UTC(selectedYear, now.getUTCMonth(), 1));
+      const currentMonthStart = new Date(
+        Date.UTC(selectedYear, now.getUTCMonth(), 1),
+      );
       const currentWeekStart = startOfIsoWeekUtc(now);
       const oldestWeekStart = new Date(currentWeekStart);
       oldestWeekStart.setUTCDate(oldestWeekStart.getUTCDate() - 7 * 12);
@@ -647,7 +1059,8 @@ export const appRouter = router({
         { distanceM: 0, elapsedS: 0, runCount: 0 },
       );
       const currentMonth = monthly.find(
-        (row) => row.monthStart.toISOString() === currentMonthStart.toISOString(),
+        (row) =>
+          row.monthStart.toISOString() === currentMonthStart.toISOString(),
       );
 
       const weekly = weeklyRows.map((row) => ({

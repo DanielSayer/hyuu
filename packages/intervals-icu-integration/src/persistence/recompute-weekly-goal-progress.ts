@@ -1,34 +1,44 @@
-import { dashboardGoalProgressWeekly, db } from "@hyuu/db";
+import { goalProgress, db } from "@hyuu/db";
 import { and, eq } from "drizzle-orm";
 
-import { isRunActivityType, startOfWeekUtc } from "../utils";
+import { isRunActivityType, startOfMonthUtc, startOfWeekUtc } from "../utils";
 
-type GoalMetricKey = "distance" | "time" | "activity_count" | "streak";
+type GoalMetricKey = "distance" | "frequency" | "pace";
+type GoalCadence = "weekly" | "monthly";
 
 function toGoalMetricKey(value: string): GoalMetricKey | null {
-  if (
-    value === "distance" ||
-    value === "time" ||
-    value === "activity_count" ||
-    value === "streak"
-  ) {
+  if (value === "distance" || value === "frequency" || value === "pace") {
     return value;
   }
   return null;
 }
 
-async function recomputeWeeklyGoalProgressForWeek({
+function isGoalCompleted(
+  goalType: GoalMetricKey,
+  currentValue: number,
+  targetValue: number,
+) {
+  if (goalType === "pace") {
+    return currentValue > 0 && currentValue <= targetValue;
+  }
+  return currentValue >= targetValue;
+}
+
+async function recomputeGoalProgressForPeriod({
   userId,
-  weekStart,
+  cadence,
+  periodStart,
 }: {
   userId: string;
-  weekStart: Date;
+  cadence: GoalCadence;
+  periodStart: Date;
 }) {
-  const goals = await db.query.dashboardGoal.findMany({
+  const goals = await db.query.goal.findMany({
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
-        operators.eq(table.isActive, true),
+        operators.isNull(table.abandonedAt),
+        operators.eq(table.cadence, cadence),
       ),
     columns: {
       id: true,
@@ -38,11 +48,12 @@ async function recomputeWeeklyGoalProgressForWeek({
   });
 
   await db
-    .delete(dashboardGoalProgressWeekly)
+    .delete(goalProgress)
     .where(
       and(
-        eq(dashboardGoalProgressWeekly.userId, userId),
-        eq(dashboardGoalProgressWeekly.weekStartLocal, weekStart),
+        eq(goalProgress.userId, userId),
+        eq(goalProgress.cadence, cadence),
+        eq(goalProgress.periodStartLocal, periodStart),
       ),
     );
 
@@ -50,28 +61,32 @@ async function recomputeWeeklyGoalProgressForWeek({
     return;
   }
 
-  const weekEnd = new Date(weekStart);
-  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+  const periodEnd = new Date(periodStart);
+  if (cadence === "weekly") {
+    periodEnd.setUTCDate(periodEnd.getUTCDate() + 7);
+  } else {
+    periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
+  }
+
   const activityRows = await db.query.intervalsActivity.findMany({
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
         operators.isNotNull(table.startDate),
-        operators.gte(table.startDate, weekStart),
-        operators.lt(table.startDate, weekEnd),
+        operators.gte(table.startDate, periodStart),
+        operators.lt(table.startDate, periodEnd),
       ),
     columns: {
       type: true,
       distance: true,
       elapsedTime: true,
-      startDate: true,
     },
   });
 
   let totalDistanceM = 0;
   let totalElapsedS = 0;
   let runCount = 0;
-  const activeDayKeys = new Set<string>();
+
   for (const row of activityRows) {
     if (!isRunActivityType(row.type)) {
       continue;
@@ -79,32 +94,39 @@ async function recomputeWeeklyGoalProgressForWeek({
     runCount += 1;
     totalDistanceM += row.distance ?? 0;
     totalElapsedS += row.elapsedTime ?? 0;
-    if (row.startDate) {
-      activeDayKeys.add(row.startDate.toISOString().slice(0, 10));
-    }
   }
 
   const metrics: Record<GoalMetricKey, number> = {
     distance: totalDistanceM,
-    time: totalElapsedS,
-    activity_count: runCount,
-    streak: activeDayKeys.size,
+    frequency: runCount,
+    pace:
+      totalDistanceM > 0 && totalElapsedS > 0
+        ? totalElapsedS / (totalDistanceM / 1000)
+        : 0,
   };
 
   const now = new Date();
-  const values = goals.flatMap((goal) => {
-    const metricKey = toGoalMetricKey(goal.goalType);
+  const values = goals.flatMap((goalRow) => {
+    const metricKey = toGoalMetricKey(goalRow.goalType);
     if (!metricKey) {
       return [];
     }
     const currentValue = metrics[metricKey];
+    const completedAt = isGoalCompleted(
+      metricKey,
+      currentValue,
+      goalRow.targetValue,
+    )
+      ? now
+      : null;
     return [
       {
-        goalId: goal.id,
+        goalId: goalRow.id,
         userId,
-        weekStartLocal: weekStart,
+        cadence,
+        periodStartLocal: periodStart,
         currentValue,
-        isComplete: currentValue >= goal.targetValue,
+        completedAt,
         createdAt: now,
         updatedAt: now,
       },
@@ -114,7 +136,7 @@ async function recomputeWeeklyGoalProgressForWeek({
     return;
   }
 
-  await db.insert(dashboardGoalProgressWeekly).values(values);
+  await db.insert(goalProgress).values(values);
 }
 
 export async function recomputeWeeklyGoalProgressForDates({
@@ -131,10 +153,22 @@ export async function recomputeWeeklyGoalProgressForDates({
       startOfWeekUtc(date, weekStartDay).toISOString(),
     ),
   );
+  const monthStarts = new Set(
+    affectedDates.map((date) => startOfMonthUtc(date).toISOString()),
+  );
+
   for (const weekStartIso of weekStarts) {
-    await recomputeWeeklyGoalProgressForWeek({
+    await recomputeGoalProgressForPeriod({
       userId,
-      weekStart: new Date(weekStartIso),
+      cadence: "weekly",
+      periodStart: new Date(weekStartIso),
+    });
+  }
+  for (const monthStartIso of monthStarts) {
+    await recomputeGoalProgressForPeriod({
+      userId,
+      cadence: "monthly",
+      periodStart: new Date(monthStartIso),
     });
   }
 }
@@ -156,11 +190,11 @@ export async function recomputeWeeklyGoalProgressForUser({
       startDate: true,
     },
   });
-  const dates = activityRows.flatMap((row) => (row.startDate ? [row.startDate] : []));
+  const dates = activityRows.flatMap((row) =>
+    row.startDate ? [row.startDate] : [],
+  );
   if (dates.length === 0) {
-    await db
-      .delete(dashboardGoalProgressWeekly)
-      .where(eq(dashboardGoalProgressWeekly.userId, userId));
+    await db.delete(goalProgress).where(eq(goalProgress.userId, userId));
     return;
   }
   await recomputeWeeklyGoalProgressForDates({

@@ -11,8 +11,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 
-export const dashboardRunRollupWeekly = pgTable(
-  "dashboard_run_rollup_weekly",
+export const runRollupWeekly = pgTable(
+  "run_rollup_weekly",
   {
     id: serial("id").primaryKey(),
     userId: text("user_id")
@@ -31,19 +31,19 @@ export const dashboardRunRollupWeekly = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("dashboard_run_rollup_weekly_user_week_unique").on(
+    uniqueIndex("run_rollup_weekly_user_week_unique").on(
       table.userId,
       table.weekStartLocal,
     ),
-    index("dashboard_run_rollup_weekly_user_week_idx").on(
+    index("run_rollup_weekly_user_week_idx").on(
       table.userId,
       table.weekStartLocal,
     ),
   ],
 );
 
-export const dashboardRunRollupMonthly = pgTable(
-  "dashboard_run_rollup_monthly",
+export const runRollupMonthly = pgTable(
+  "run_rollup_monthly",
   {
     id: serial("id").primaryKey(),
     userId: text("user_id")
@@ -62,32 +62,32 @@ export const dashboardRunRollupMonthly = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("dashboard_run_rollup_monthly_user_month_unique").on(
+    uniqueIndex("run_rollup_monthly_user_month_unique").on(
       table.userId,
       table.monthStartLocal,
     ),
-    index("dashboard_run_rollup_monthly_user_month_idx").on(
+    index("run_rollup_monthly_user_month_idx").on(
       table.userId,
       table.monthStartLocal,
     ),
   ],
 );
 
-export const dashboardRunRollupWeeklyRelations = relations(
-  dashboardRunRollupWeekly,
+export const runRollupWeeklyRelations = relations(
+  runRollupWeekly,
   ({ one }) => ({
     user: one(user, {
-      fields: [dashboardRunRollupWeekly.userId],
+      fields: [runRollupWeekly.userId],
       references: [user.id],
     }),
   }),
 );
 
-export const dashboardRunRollupMonthlyRelations = relations(
-  dashboardRunRollupMonthly,
+export const runRollupMonthlyRelations = relations(
+  runRollupMonthly,
   ({ one }) => ({
     user: one(user, {
-      fields: [dashboardRunRollupMonthly.userId],
+      fields: [runRollupMonthly.userId],
       references: [user.id],
     }),
   }),

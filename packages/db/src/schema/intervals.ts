@@ -93,7 +93,7 @@ export const intervalsActivity = pgTable(
     source: text("source"),
     externalId: text("external_id"),
     startDate: timestamp("start_date"),
-    startDateLocal: timestamp("start_date_local"),
+    startDateLocal: timestamp("start_date_local", { mode: "string" }),
     analyzedAt: timestamp("analyzed_at"),
     syncedAt: timestamp("synced_at"),
     distance: doublePrecision("distance"),

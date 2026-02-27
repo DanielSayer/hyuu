@@ -13,6 +13,37 @@ function toDateOrNull(value: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function toLocalDateOrNull(value: string | null | undefined) {
+  if (typeof value !== "string" || value.length === 0) {
+    return null;
+  }
+  const zonedDate = new Date(value);
+  if (!Number.isNaN(zonedDate.getTime()) && /[zZ]|[+-]\d{2}:\d{2}$/.test(value)) {
+    return zonedDate;
+  }
+
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/,
+  );
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day, hour, minute, second, millis] = match;
+  const date = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+      Number(millis ?? "0"),
+    ),
+  );
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function toIntOrNull(value: number | null | undefined) {
   return typeof value === "number" ? Math.trunc(value) : null;
 }
@@ -37,6 +68,15 @@ function toNumberArrayOrNull(value: number[] | null | undefined) {
 
 function toDateOnlyString(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function toLocalDateTimeString(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
+    date.getUTCDate(),
+  )}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(
+    date.getUTCSeconds(),
+  )}`;
 }
 
 const RUN_ACTIVITY_TYPES = new Set([
@@ -266,9 +306,11 @@ export {
   startOfIsoWeekUtc,
   startOfMonthUtc,
   toDateOrNull,
+  toLocalDateOrNull,
   toIntOrNull,
   toNumberOrNull,
   toIntArrayOrNull,
   toNumberArrayOrNull,
   toDateOnlyString,
+  toLocalDateTimeString,
 };

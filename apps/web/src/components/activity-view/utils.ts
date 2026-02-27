@@ -28,6 +28,43 @@ type MetricSeriesPoint = {
   value: number;
 };
 
+function getActivityDurationSeconds(activity: Activity) {
+  const duration = activity.elapsedTime ?? activity.movingTime;
+  if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0) {
+    return null;
+  }
+  return duration;
+}
+
+function inferSecondsPerPoint({
+  durationSeconds,
+  pointCount,
+}: {
+  durationSeconds: number | null;
+  pointCount: number;
+}) {
+  if (!durationSeconds || pointCount <= 0) {
+    return 1;
+  }
+  return durationSeconds / pointCount;
+}
+
+function mapStreamIndexToSecond({
+  activity,
+  streamPointCount,
+  index,
+}: {
+  activity: Activity;
+  streamPointCount: number;
+  index: number;
+}) {
+  const secondsPerPoint = inferSecondsPerPoint({
+    durationSeconds: getActivityDurationSeconds(activity),
+    pointCount: streamPointCount,
+  });
+  return index * secondsPerPoint;
+}
+
 const metricSpecs: Record<MetricKey, MetricSpec> = {
   heartrate: {
     label: "Heart Rate",
@@ -92,13 +129,21 @@ function getMetricSeries(
     return [];
   }
 
+  const streamPointCount = stream.data.length;
   return stream.data
     .map((rawValue, second) => {
       const value = metricSpecs[metric].normalizeRawValue(rawValue);
       if (value === null) {
         return null;
       }
-      return { second, value } satisfies MetricSeriesPoint;
+      return {
+        second: mapStreamIndexToSecond({
+          activity,
+          streamPointCount,
+          index: second,
+        }),
+        value,
+      } satisfies MetricSeriesPoint;
     })
     .filter((point): point is MetricSeriesPoint => point !== null);
 }
@@ -131,6 +176,7 @@ export {
   buildCompareChartData,
   getAvailableMetrics,
   getMetricSeries,
+  mapStreamIndexToSecond,
   metricKeys,
   metricSpecs,
 };

@@ -21,6 +21,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "../ui/chart";
+import { mapStreamIndexToSecond } from "./utils";
 
 type HrPoint = {
   second: number;
@@ -54,7 +55,11 @@ function HrChart({ activity }: { activity: Activity }) {
       }
 
       return {
-        second: index,
+        second: mapStreamIndexToSecond({
+          activity,
+          streamPointCount: Number(hrData.data.length),
+          index,
+        }),
         heartrate: value,
       } satisfies HrPoint;
     })

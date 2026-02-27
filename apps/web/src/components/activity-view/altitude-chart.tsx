@@ -3,6 +3,7 @@ import { MountainIcon, TimerIcon } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
 import { formatSecondsToHms } from "@hyuu/utils/time";
+import { mapStreamIndexToSecond } from "./utils";
 
 type AltitudePoint = {
   second: number;
@@ -34,7 +35,14 @@ function AltitudeChart({ activity }: { activity: Activity }) {
       if (typeof value !== "number" || !Number.isFinite(value)) {
         return null;
       }
-      return { second: index, altitude: value };
+      return {
+        second: mapStreamIndexToSecond({
+          activity,
+          streamPointCount: Number(altitudeStream.data.length),
+          index,
+        }),
+        altitude: value,
+      };
     })
     .filter((point): point is AltitudePoint => point !== null);
 

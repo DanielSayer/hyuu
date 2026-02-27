@@ -44,9 +44,15 @@ export async function fetchAndUpsertActivities({
       requestedStreamTypes.length > 0
         ? await gateway.fetchActivityStreams(activityId, requestedStreamTypes)
         : [];
-    const bestEfforts = computeBestEffortsFromDistanceStream(streams);
-    const oneKmSplitTimesSeconds =
-      computeOneKmSplitTimesFromDistanceStream(streams);
+    const streamDurationSeconds = detail.elapsed_time ?? detail.moving_time;
+    const bestEfforts = computeBestEffortsFromDistanceStream(
+      streams,
+      streamDurationSeconds,
+    );
+    const oneKmSplitTimesSeconds = computeOneKmSplitTimesFromDistanceStream(
+      streams,
+      streamDurationSeconds,
+    );
     activities.push({
       activityId,
       detail,

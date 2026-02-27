@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
+import { mapStreamIndexToSecond } from "./utils";
 
 type VelocityPoint = {
   second: number;
@@ -43,7 +44,14 @@ function VelocityChart({ activity }: { activity: Activity }) {
       if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
         return null;
       }
-      return { second: index, velocity: value };
+      return {
+        second: mapStreamIndexToSecond({
+          activity,
+          streamPointCount: Number(velocityStream.data.length),
+          index,
+        }),
+        velocity: value,
+      };
     })
     .filter((point): point is VelocityPoint => point !== null);
 

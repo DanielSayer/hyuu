@@ -1,7 +1,13 @@
 import { goalProgress, db } from "@hyuu/db";
 import { and, eq } from "drizzle-orm";
 
-import { isRunActivityType, startOfMonthUtc, startOfWeekUtc } from "../utils";
+import {
+  isRunActivityType,
+  startOfMonthUtc,
+  startOfWeekUtc,
+  toLocalDateOrNull,
+  toLocalDateTimeString,
+} from "../utils";
 
 type GoalMetricKey = "distance" | "frequency" | "pace";
 type GoalCadence = "weekly" | "monthly";
@@ -67,14 +73,16 @@ async function recomputeGoalProgressForPeriod({
   } else {
     periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
   }
+  const periodStartLocal = toLocalDateTimeString(periodStart);
+  const periodEndLocal = toLocalDateTimeString(periodEnd);
 
   const activityRows = await db.query.intervalsActivity.findMany({
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
-        operators.isNotNull(table.startDate),
-        operators.gte(table.startDate, periodStart),
-        operators.lt(table.startDate, periodEnd),
+        operators.isNotNull(table.startDateLocal),
+        operators.gte(table.startDateLocal, periodStartLocal),
+        operators.lt(table.startDateLocal, periodEndLocal),
       ),
     columns: {
       type: true,
@@ -150,25 +158,33 @@ export async function recomputeWeeklyGoalProgressForDates({
 }) {
   const weekStarts = new Set(
     affectedDates.map((date) =>
-      startOfWeekUtc(date, weekStartDay).toISOString(),
+      toLocalDateTimeString(startOfWeekUtc(date, weekStartDay)),
     ),
   );
   const monthStarts = new Set(
-    affectedDates.map((date) => startOfMonthUtc(date).toISOString()),
+    affectedDates.map((date) => toLocalDateTimeString(startOfMonthUtc(date))),
   );
 
   for (const weekStartIso of weekStarts) {
+    const weekStart = toLocalDateOrNull(weekStartIso);
+    if (!weekStart) {
+      continue;
+    }
     await recomputeGoalProgressForPeriod({
       userId,
       cadence: "weekly",
-      periodStart: new Date(weekStartIso),
+      periodStart: weekStart,
     });
   }
   for (const monthStartIso of monthStarts) {
+    const monthStart = toLocalDateOrNull(monthStartIso);
+    if (!monthStart) {
+      continue;
+    }
     await recomputeGoalProgressForPeriod({
       userId,
       cadence: "monthly",
-      periodStart: new Date(monthStartIso),
+      periodStart: monthStart,
     });
   }
 }
@@ -184,15 +200,19 @@ export async function recomputeWeeklyGoalProgressForUser({
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
-        operators.isNotNull(table.startDate),
+        operators.isNotNull(table.startDateLocal),
       ),
     columns: {
-      startDate: true,
+      startDateLocal: true,
     },
   });
-  const dates = activityRows.flatMap((row) =>
-    row.startDate ? [row.startDate] : [],
-  );
+  const dates = activityRows.flatMap((row) => {
+    if (!row.startDateLocal) {
+      return [];
+    }
+    const localDate = toLocalDateOrNull(row.startDateLocal);
+    return localDate ? [localDate] : [];
+  });
   if (dates.length === 0) {
     await db.delete(goalProgress).where(eq(goalProgress.userId, userId));
     return;

@@ -14,6 +14,8 @@ import {
   isRunActivityType,
   startOfIsoWeekUtc,
   startOfMonthUtc,
+  toLocalDateOrNull,
+  toLocalDateTimeString,
 } from "../utils";
 import type { IntervalsRepository } from "./intervals-repository";
 import {
@@ -182,10 +184,20 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
                 operators.eq(table.userId, userId),
                 operators.eq(table.intervalsActivityId, activity.activityId),
               ),
-            columns: { id: true, startDate: true },
+            columns: { id: true, startDate: true, startDateLocal: true },
           });
 
-          if (existing?.startDate) {
+          let trackedExistingDate = false;
+          if (existing?.startDateLocal) {
+            const existingStartDateLocal = toLocalDateOrNull(
+              existing.startDateLocal,
+            );
+            if (existingStartDateLocal) {
+              affectedDateEpochs.add(existingStartDateLocal.getTime());
+              trackedExistingDate = true;
+            }
+          }
+          if (!trackedExistingDate && existing?.startDate) {
             affectedDateEpochs.add(existing.startDate.getTime());
           }
 
@@ -196,7 +208,10 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
             now,
           });
 
-          if (activityValues.startDate) {
+          const startDateLocal = toLocalDateOrNull(activityValues.startDateLocal);
+          if (startDateLocal) {
+            affectedDateEpochs.add(startDateLocal.getTime());
+          } else if (activityValues.startDate) {
             affectedDateEpochs.add(activityValues.startDate.getTime());
           }
 
@@ -282,21 +297,27 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
       }
 
       const weekStarts = new Set(
-        affectedDates.map((date) => startOfIsoWeekUtc(date).toISOString()),
+        affectedDates.map((date) => toLocalDateTimeString(startOfIsoWeekUtc(date))),
       );
       const monthStarts = new Set(
-        affectedDates.map((date) => startOfMonthUtc(date).toISOString()),
+        affectedDates.map((date) => toLocalDateTimeString(startOfMonthUtc(date))),
       );
 
       for (const weekStartIso of weekStarts) {
-        const weekStart = new Date(weekStartIso);
+        const weekStart = toLocalDateOrNull(weekStartIso);
+        if (!weekStart) {
+          continue;
+        }
         const weekEnd = new Date(weekStart);
         weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
         await recomputeWeeklyBucket({ userId, weekStart, weekEnd });
       }
 
       for (const monthStartIso of monthStarts) {
-        const monthStart = new Date(monthStartIso);
+        const monthStart = toLocalDateOrNull(monthStartIso);
+        if (!monthStart) {
+          continue;
+        }
         const monthEnd = new Date(monthStart);
         monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
         await recomputeMonthlyBucket({ userId, monthStart, monthEnd });
@@ -404,8 +425,9 @@ async function recomputeWeeklyBucket({
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
-        operators.gte(table.startDate, weekStart),
-        operators.lt(table.startDate, weekEnd),
+        operators.isNotNull(table.startDateLocal),
+        operators.gte(table.startDateLocal, toLocalDateTimeString(weekStart)),
+        operators.lt(table.startDateLocal, toLocalDateTimeString(weekEnd)),
       ),
     columns: {
       type: true,
@@ -454,8 +476,9 @@ async function recomputeMonthlyBucket({
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
-        operators.gte(table.startDate, monthStart),
-        operators.lt(table.startDate, monthEnd),
+        operators.isNotNull(table.startDateLocal),
+        operators.gte(table.startDateLocal, toLocalDateTimeString(monthStart)),
+        operators.lt(table.startDateLocal, toLocalDateTimeString(monthEnd)),
       ),
     columns: {
       type: true,
@@ -496,14 +519,14 @@ async function recomputeAllRunRollups(userId: string) {
     where: (table, operators) =>
       operators.and(
         operators.eq(table.userId, userId),
-        operators.isNotNull(table.startDate),
+        operators.isNotNull(table.startDateLocal),
       ),
     columns: {
       type: true,
       distance: true,
       elapsedTime: true,
       movingTime: true,
-      startDate: true,
+      startDateLocal: true,
     },
   });
 
@@ -511,11 +534,15 @@ async function recomputeAllRunRollups(userId: string) {
   const monthlyRows = new Map<string, ActivityForRollup[]>();
 
   for (const row of rows) {
-    if (!row.startDate) {
+    if (!row.startDateLocal) {
       continue;
     }
-    const weekStart = startOfIsoWeekUtc(row.startDate);
-    const monthStart = startOfMonthUtc(row.startDate);
+    const localStartDate = toLocalDateOrNull(row.startDateLocal);
+    if (!localStartDate) {
+      continue;
+    }
+    const weekStart = startOfIsoWeekUtc(localStartDate);
+    const monthStart = startOfMonthUtc(localStartDate);
     const weekKey = weekStart.toISOString();
     const monthKey = monthStart.toISOString();
 

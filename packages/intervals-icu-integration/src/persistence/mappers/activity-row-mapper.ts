@@ -47,7 +47,11 @@ export function mapActivityToActivityValues({
     source: activity.detail.source ?? null,
     externalId: activity.detail.external_id ?? null,
     startDate: toDateOrNull(activity.detail.start_date),
-    startDateLocal: toDateOrNull(activity.detail.start_date_local),
+    startDateLocal:
+      typeof activity.detail.start_date_local === "string" &&
+      activity.detail.start_date_local.length > 0
+        ? activity.detail.start_date_local
+        : null,
     analyzedAt: toDateOrNull(activity.detail.analyzed),
     syncedAt: toDateOrNull(activity.detail.icu_sync_date),
     distance: toNumberOrNull(activity.detail.distance),

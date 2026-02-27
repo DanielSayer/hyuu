@@ -1,4 +1,5 @@
-import { db } from "@hyuu/db";
+import { and, eq } from "drizzle-orm";
+import { dashboardGoal, db, userSettings } from "@hyuu/db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -16,12 +17,207 @@ import {
   oneKmSplitTimesSecondsSchema,
 } from "../schemas/activities";
 import {
+  archiveGoalInputSchema,
+  createGoalInputSchema,
+  goalTypeSchema,
+  updateGoalInputSchema,
+} from "../schemas/goals";
+import type { GoalType } from "../schemas/goals";
+import {
   formatPace,
   getIsoWeekNumber,
   parseNullableJsonb,
   startOfIsoWeekUtc,
+  startOfWeekUtc,
   startOfMonthUtc,
 } from "../utils";
+
+const RUN_ACTIVITY_TYPES = new Set([
+  "run",
+  "trailrun",
+  "treadmillrun",
+  "virtualrun",
+]);
+
+function normalizeActivityType(type: string) {
+  return type.replaceAll(/[\s_-]/g, "").toLowerCase();
+}
+
+function isRunActivityType(type: string | null | undefined) {
+  if (typeof type !== "string" || type.length === 0) {
+    return false;
+  }
+  return RUN_ACTIVITY_TYPES.has(normalizeActivityType(type));
+}
+
+function toWeekStartDay(value: number | null | undefined): 0 | 1 {
+  return value === 0 ? 0 : 1;
+}
+
+function validateGoalTargetValue(goalType: GoalType, targetValue: number) {
+  if (!Number.isFinite(targetValue) || targetValue <= 0) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "targetValue must be a positive number.",
+    });
+  }
+  if ((goalType === "activity_count" || goalType === "streak") && !Number.isInteger(targetValue)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "activity_count and streak targets must be whole numbers.",
+    });
+  }
+  if (goalType === "streak" && (targetValue < 1 || targetValue > 7)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "streak target must be between 1 and 7 days.",
+    });
+  }
+  return targetValue;
+}
+
+async function ensureUserWeekStartDay(userId: string): Promise<0 | 1> {
+  const settings = await db.query.userSettings.findFirst({
+    where: (table, operators) => operators.eq(table.userId, userId),
+    columns: { weekStartDay: true },
+  });
+  if (settings) {
+    return toWeekStartDay(settings.weekStartDay);
+  }
+  await db.insert(userSettings).values({
+    userId,
+    weekStartDay: 1,
+  }).onConflictDoNothing();
+  return 1;
+}
+
+async function computeWeekGoalMetrics({
+  userId,
+  weekStart,
+}: {
+  userId: string;
+  weekStart: Date;
+}) {
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+
+  const rows = await db.query.intervalsActivity.findMany({
+    where: (table, operators) =>
+      operators.and(
+        operators.eq(table.userId, userId),
+        operators.isNotNull(table.startDate),
+        operators.gte(table.startDate, weekStart),
+        operators.lt(table.startDate, weekEnd),
+      ),
+    columns: {
+      type: true,
+      distance: true,
+      elapsedTime: true,
+      startDate: true,
+    },
+  });
+
+  let distanceMeters = 0;
+  let elapsedSeconds = 0;
+  let runCount = 0;
+  const activeDayKeys = new Set<string>();
+
+  for (const row of rows) {
+    if (!isRunActivityType(row.type)) {
+      continue;
+    }
+    runCount += 1;
+    distanceMeters += row.distance ?? 0;
+    elapsedSeconds += row.elapsedTime ?? 0;
+    if (row.startDate) {
+      activeDayKeys.add(row.startDate.toISOString().slice(0, 10));
+    }
+  }
+
+  return {
+    distance: distanceMeters,
+    time: elapsedSeconds,
+    activity_count: runCount,
+    streak: activeDayKeys.size,
+  };
+}
+
+async function loadGoalsWithProgress({
+  userId,
+  now,
+}: {
+  userId: string;
+  now: Date;
+}) {
+  const weekStartDay = await ensureUserWeekStartDay(userId);
+  const weekStart = startOfWeekUtc(now, weekStartDay);
+  const activeGoals = await db.query.dashboardGoal.findMany({
+    where: (table, operators) =>
+      operators.and(
+        operators.eq(table.userId, userId),
+        operators.eq(table.isActive, true),
+      ),
+    orderBy: (table, operators) => [operators.asc(table.id)],
+    columns: {
+      id: true,
+      goalType: true,
+      targetValue: true,
+    },
+  });
+  if (activeGoals.length === 0) {
+    return { goals: [], weekStart, weekStartDay };
+  }
+
+  const progressRows = await db.query.dashboardGoalProgressWeekly.findMany({
+    where: (table, operators) =>
+      operators.and(
+        operators.eq(table.userId, userId),
+        operators.eq(table.weekStartLocal, weekStart),
+      ),
+    columns: {
+      goalId: true,
+      currentValue: true,
+    },
+  });
+  const progressByGoalId = new Map(
+    progressRows.map((row) => [row.goalId, row.currentValue]),
+  );
+  const missingGoalTypes = activeGoals
+    .filter((goal) => !progressByGoalId.has(goal.id))
+    .flatMap((goal) => {
+      const parsed = goalTypeSchema.safeParse(goal.goalType);
+      return parsed.success ? [parsed.data] : [];
+    });
+  const metrics =
+    missingGoalTypes.length > 0
+      ? await computeWeekGoalMetrics({ userId, weekStart })
+      : null;
+
+  const goals = activeGoals.flatMap((goal) => {
+    const parsedGoalType = goalTypeSchema.safeParse(goal.goalType);
+    if (!parsedGoalType.success) {
+      return [];
+    }
+
+    const goalType = parsedGoalType.data;
+    const currentValue =
+      progressByGoalId.get(goal.id) ?? (metrics ? metrics[goalType] : 0);
+    const targetValue = goal.targetValue;
+    const progressRatio = targetValue > 0 ? currentValue / targetValue : 0;
+    return [
+      {
+        id: goal.id,
+        goalType,
+        targetValue,
+        currentValue,
+        progressRatio,
+        isComplete: currentValue >= targetValue,
+      },
+    ];
+  });
+
+  return { goals, weekStart, weekStartDay };
+}
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
@@ -65,6 +261,138 @@ export const appRouter = router({
       averageHeartrate: item.averageHeartrate,
       routePreview: parseNullableJsonb(item.mapData, activityMapDataSchema),
     }));
+  }),
+  goals: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const data = await loadGoalsWithProgress({
+        userId: ctx.session.user.id,
+        now: new Date(),
+      });
+      return {
+        weekStart: data.weekStart,
+        weekStartDay: data.weekStartDay,
+        goals: data.goals,
+      };
+    }),
+    create: protectedProcedure
+      .input(createGoalInputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const targetValue = validateGoalTargetValue(
+          input.goalType,
+          input.targetValue,
+        );
+        const now = new Date();
+        const existing = await db.query.dashboardGoal.findFirst({
+          where: (table, operators) =>
+            operators.and(
+              operators.eq(table.userId, ctx.session.user.id),
+              operators.eq(table.goalType, input.goalType),
+            ),
+          columns: { id: true },
+        });
+
+        if (existing) {
+          await db
+            .update(dashboardGoal)
+            .set({
+              targetValue,
+              isActive: true,
+              updatedAt: now,
+            })
+            .where(
+              and(
+                eq(dashboardGoal.id, existing.id),
+                eq(dashboardGoal.userId, ctx.session.user.id),
+              ),
+            );
+        } else {
+          await db.insert(dashboardGoal).values({
+            userId: ctx.session.user.id,
+            goalType: input.goalType,
+            targetValue,
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        return loadGoalsWithProgress({
+          userId: ctx.session.user.id,
+          now,
+        });
+      }),
+    update: protectedProcedure
+      .input(updateGoalInputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const existing = await db.query.dashboardGoal.findFirst({
+          where: (table, operators) =>
+            operators.and(
+              operators.eq(table.id, input.id),
+              operators.eq(table.userId, ctx.session.user.id),
+            ),
+          columns: { id: true, goalType: true },
+        });
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Goal not found.",
+          });
+        }
+        const parsedGoalType = goalTypeSchema.safeParse(existing.goalType);
+        if (!parsedGoalType.success) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Goal type is invalid.",
+          });
+        }
+        const targetValue = validateGoalTargetValue(
+          parsedGoalType.data,
+          input.targetValue,
+        );
+        await db
+          .update(dashboardGoal)
+          .set({
+            targetValue,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(dashboardGoal.id, input.id),
+              eq(dashboardGoal.userId, ctx.session.user.id),
+            ),
+          );
+
+        return loadGoalsWithProgress({
+          userId: ctx.session.user.id,
+          now: new Date(),
+        });
+      }),
+    archive: protectedProcedure
+      .input(archiveGoalInputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const [archived] = await db
+          .update(dashboardGoal)
+          .set({
+            isActive: false,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(dashboardGoal.id, input.id),
+              eq(dashboardGoal.userId, ctx.session.user.id),
+            ),
+          )
+          .returning({ id: dashboardGoal.id });
+        if (!archived) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Goal not found.",
+          });
+        }
+        return {
+          success: true,
+        };
+      }),
   }),
   activitiesMap: protectedProcedure
     .input(
@@ -125,7 +453,11 @@ export const appRouter = router({
     const currentMonthStart = startOfMonthUtc(now);
     const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
-    const [weeklyRows, monthlyRows, prRows, latestSuccessfulSync] =
+    const goalsDataPromise = loadGoalsWithProgress({
+      userId: ctx.session.user.id,
+      now,
+    });
+    const [weeklyRows, monthlyRows, prRows, latestSuccessfulSync, goalsData] =
       await Promise.all([
       db.query.dashboardRunRollupWeekly.findMany({
         where: (table, operators) =>
@@ -177,6 +509,7 @@ export const appRouter = router({
           completedAt: true,
         },
       }),
+      goalsDataPromise,
     ]);
 
     const monthlyByStart = new Map(
@@ -226,6 +559,7 @@ export const appRouter = router({
         weeklyMileage,
         averagePace: paceTrend,
       },
+      goals: goalsData.goals,
     };
   }),
   analytics: protectedProcedure

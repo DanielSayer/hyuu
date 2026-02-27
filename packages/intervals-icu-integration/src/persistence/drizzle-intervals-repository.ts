@@ -1,4 +1,5 @@
 import { db } from "@hyuu/db";
+import { userSettings } from "@hyuu/db/schema/auth";
 import {
   dashboardRunPr,
   dashboardRunRollupMonthly,
@@ -12,6 +13,10 @@ import {
 } from "@hyuu/db/schema/intervals";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import type { IntervalsRepository } from "./intervals-repository";
+import {
+  recomputeWeeklyGoalProgressForDates,
+  recomputeWeeklyGoalProgressForUser,
+} from "./recompute-weekly-goal-progress";
 import {
   mapActivityToActivityValues,
   mapActivityToBestEffortRows,
@@ -301,10 +306,21 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
       }
 
       await recomputeRunPrs(userId);
+      const weekStartDay = await getUserWeekStartDay(userId);
+      await recomputeWeeklyGoalProgressForDates({
+        userId,
+        affectedDates,
+        weekStartDay,
+      });
     },
     async recomputeDashboardRunRollupsForUser(userId) {
       await recomputeAllRunRollups(userId);
       await recomputeRunPrs(userId);
+      const weekStartDay = await getUserWeekStartDay(userId);
+      await recomputeWeeklyGoalProgressForUser({
+        userId,
+        weekStartDay,
+      });
     },
     async listConnectedUserIds() {
       const rows = await db.query.intervalsAthleteProfile.findMany({
@@ -315,6 +331,24 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
       return [...new Set(rows.map((row) => row.userId))];
     },
   };
+}
+
+async function getUserWeekStartDay(userId: string): Promise<0 | 1> {
+  const settings = await db.query.userSettings.findFirst({
+    where: (table, operators) => operators.eq(table.userId, userId),
+    columns: {
+      weekStartDay: true,
+    },
+  });
+  if (settings) {
+    return settings.weekStartDay === 0 ? 0 : 1;
+  }
+
+  await db.insert(userSettings).values({
+    userId,
+    weekStartDay: 1,
+  }).onConflictDoNothing();
+  return 1;
 }
 
 type ActivityForRollup = {
@@ -349,10 +383,11 @@ function buildRollupStats(rows: ActivityForRollup[]) {
     totalDistanceM,
     totalElapsedS,
     totalMovingS,
-    avgPaceSecPerKm: computePaceSecPerKm({
-      elapsedSeconds: totalElapsedS,
-      distanceMeters: totalDistanceM,
-    }),
+    avgPaceSecPerKm:
+      computePaceSecPerKm({
+        elapsedSeconds: totalElapsedS,
+        distanceMeters: totalDistanceM,
+      }) ?? 0,
   };
 }
 

@@ -70,15 +70,24 @@ function computePaceSecPerKm({
   return elapsedSeconds / (distanceMeters / 1000);
 }
 
-function startOfIsoWeekUtc(date: Date) {
+function startOfWeekUtc(date: Date, weekStartDay: 0 | 1) {
   const start = new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
   );
   const day = start.getUTCDay();
-  const offsetToMonday = day === 0 ? -6 : 1 - day;
-  start.setUTCDate(start.getUTCDate() + offsetToMonday);
+  const offsetToWeekStart =
+    weekStartDay === 1
+      ? day === 0
+        ? -6
+        : 1 - day
+      : -day;
+  start.setUTCDate(start.getUTCDate() + offsetToWeekStart);
   start.setUTCHours(0, 0, 0, 0);
   return start;
+}
+
+function startOfIsoWeekUtc(date: Date) {
+  return startOfWeekUtc(date, 1);
 }
 
 function startOfMonthUtc(date: Date) {
@@ -253,6 +262,7 @@ export {
   computeBestEffortsFromDistanceStream,
   computeOneKmSplitTimesFromDistanceStream,
   isRunActivityType,
+  startOfWeekUtc,
   startOfIsoWeekUtc,
   startOfMonthUtc,
   toDateOrNull,

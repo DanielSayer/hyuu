@@ -8,6 +8,7 @@ import {
 } from "@/components/dashboard/activity-preview";
 import { WeeklyDistanceCard } from "@/components/dashboard/weekly-distance-card";
 import { WeeklyPaceCard } from "@/components/dashboard/weekly-pace-card";
+import { GoalsCard } from "@/components/dashboard/goals-card";
 import { authClient } from "@/lib/auth-client";
 import {
   syncIntervalsActivities,
@@ -113,7 +114,7 @@ function RouteComponent() {
           <WeeklyPaceCard weeklyPace={data?.trends.averagePace ?? []} />
         </div>
 
-        <div>Goals Placeholder + Maybe Prs</div>
+        <GoalsCard goals={data?.goals ?? []} />
 
         <div className="space-y-2">
           <div>

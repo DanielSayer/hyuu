@@ -58,15 +58,24 @@ export function startOfMonthUtc(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }
 
-export function startOfIsoWeekUtc(date: Date): Date {
+export function startOfWeekUtc(date: Date, weekStartDay: 0 | 1): Date {
   const start = new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
   );
   const day = start.getUTCDay();
-  const offsetToMonday = day === 0 ? -6 : 1 - day;
-  start.setUTCDate(start.getUTCDate() + offsetToMonday);
+  const offsetToWeekStart =
+    weekStartDay === 1
+      ? day === 0
+        ? -6
+        : 1 - day
+      : -day;
+  start.setUTCDate(start.getUTCDate() + offsetToWeekStart);
   start.setUTCHours(0, 0, 0, 0);
   return start;
+}
+
+export function startOfIsoWeekUtc(date: Date): Date {
+  return startOfWeekUtc(date, 1);
 }
 
 export function getIsoWeekNumber(date: Date): number {

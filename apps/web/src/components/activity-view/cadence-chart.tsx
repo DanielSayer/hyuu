@@ -3,6 +3,7 @@ import { formatSecondsToHms } from "@hyuu/utils/time";
 import { FootprintsIcon, TimerIcon } from "lucide-react";
 import { CartesianGrid, Scatter, ScatterChart, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "../ui/chart";
+import { mapStreamIndexToSecond } from "./utils";
 
 type CadencePoint = {
   second: number;
@@ -48,7 +49,14 @@ function CadenceChart({ activity }: { activity: Activity }) {
       if (typeof value !== "number" || !Number.isFinite(value) || value === 0) {
         return null;
       }
-      return { second: index, cadence: value * 2 };
+      return {
+        second: mapStreamIndexToSecond({
+          activity,
+          streamPointCount: Number(cadenceStream.data.length),
+          index,
+        }),
+        cadence: value * 2,
+      } satisfies CadencePoint;
     })
     .filter((point): point is CadencePoint => point !== null);
 

@@ -222,30 +222,71 @@ function extractDistanceMetersBySecond(streams: IntervalsActivityStream[]) {
   return clampedDistance;
 }
 
+function inferSecondsPerStreamPoint({
+  durationSeconds,
+  pointCount,
+}: {
+  durationSeconds: number | null | undefined;
+  pointCount: number;
+}) {
+  if (pointCount <= 0) {
+    return 1;
+  }
+
+  if (
+    typeof durationSeconds !== "number" ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds <= 0
+  ) {
+    return 1;
+  }
+
+  return durationSeconds / pointCount;
+}
+
 function computeBestEffortsFromDistanceStream(
   streams: IntervalsActivityStream[],
+  durationSeconds: number | null | undefined,
 ): IntervalsComputedBestEffort[] {
   const distanceMetersBySecond = extractDistanceMetersBySecond(streams);
   if (!distanceMetersBySecond) {
     return [];
   }
+  const secondsPerPoint = inferSecondsPerStreamPoint({
+    durationSeconds,
+    pointCount: distanceMetersBySecond.length,
+  });
 
   return BEST_EFFORT_TARGET_DISTANCES_METERS.flatMap((targetDistanceMeters) => {
     const bestEffort = computeBestEffortForTargetDistance({
       targetDistanceMeters,
       distanceMetersBySecond,
     });
-    return bestEffort ? [bestEffort] : [];
+    if (!bestEffort) {
+      return [];
+    }
+
+    return [
+      {
+        ...bestEffort,
+        durationSeconds: Math.round(bestEffort.durationSeconds * secondsPerPoint),
+      },
+    ];
   });
 }
 
 function computeOneKmSplitTimesFromDistanceStream(
   streams: IntervalsActivityStream[],
+  durationSeconds: number | null | undefined,
 ): IntervalsComputedOneKmSplitTime[] {
   const distanceMetersBySecond = extractDistanceMetersBySecond(streams);
   if (!distanceMetersBySecond || distanceMetersBySecond.length < 2) {
     return [];
   }
+  const secondsPerPoint = inferSecondsPerStreamPoint({
+    durationSeconds,
+    pointCount: distanceMetersBySecond.length,
+  });
 
   const totalSamples = distanceMetersBySecond.length;
   const lastSampleIndex = totalSamples - 1;
@@ -275,7 +316,7 @@ function computeOneKmSplitTimesFromDistanceStream(
     splitTimes.push({
       splitNumber: nextSplitNumber,
       splitDistanceMeters: 1000,
-      durationSeconds: endIndex - splitStartIndex,
+      durationSeconds: Math.round((endIndex - splitStartIndex) * secondsPerPoint),
     });
 
     splitStartIndex = endIndex;
@@ -289,7 +330,9 @@ function computeOneKmSplitTimesFromDistanceStream(
     splitTimes.push({
       splitNumber: nextSplitNumber,
       splitDistanceMeters: remainderDistanceMeters,
-      durationSeconds: lastSampleIndex - splitStartIndex,
+      durationSeconds: Math.round(
+        (lastSampleIndex - splitStartIndex) * secondsPerPoint,
+      ),
     });
   }
 

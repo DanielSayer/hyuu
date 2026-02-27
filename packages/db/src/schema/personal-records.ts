@@ -12,8 +12,8 @@ import {
 import { user } from "./auth";
 import { intervalsActivity } from "./intervals";
 
-export const dashboardRunPr = pgTable(
-  "dashboard_run_pr",
+export const runPr = pgTable(
+  "run_pr",
   {
     id: serial("id").primaryKey(),
     userId: text("user_id")
@@ -33,21 +33,18 @@ export const dashboardRunPr = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("dashboard_run_pr_user_type_unique").on(
-      table.userId,
-      table.prType,
-    ),
-    index("dashboard_run_pr_user_idx").on(table.userId),
+    uniqueIndex("run_pr_user_type_unique").on(table.userId, table.prType),
+    index("run_pr_user_idx").on(table.userId),
   ],
 );
 
-export const dashboardRunPrRelations = relations(dashboardRunPr, ({ one }) => ({
+export const runPrRelations = relations(runPr, ({ one }) => ({
   user: one(user, {
-    fields: [dashboardRunPr.userId],
+    fields: [runPr.userId],
     references: [user.id],
   }),
   activity: one(intervalsActivity, {
-    fields: [dashboardRunPr.activityId],
+    fields: [runPr.activityId],
     references: [intervalsActivity.id],
   }),
 }));

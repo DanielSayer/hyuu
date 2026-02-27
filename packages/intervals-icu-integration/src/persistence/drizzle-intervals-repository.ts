@@ -1,9 +1,6 @@
-import { db } from "@hyuu/db";
+import { db, runPr, runRollupMonthly, runRollupWeekly } from "@hyuu/db";
 import { userSettings } from "@hyuu/db/schema/auth";
 import {
-  dashboardRunPr,
-  dashboardRunRollupMonthly,
-  dashboardRunRollupWeekly,
   intervalsActivity,
   intervalsActivityBestEffort,
   intervalsActivityInterval,
@@ -12,11 +9,13 @@ import {
   intervalsSyncLog,
 } from "@hyuu/db/schema/intervals";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
-import type { IntervalsRepository } from "./intervals-repository";
 import {
-  recomputeWeeklyGoalProgressForDates,
-  recomputeWeeklyGoalProgressForUser,
-} from "./recompute-weekly-goal-progress";
+  computePaceSecPerKm,
+  isRunActivityType,
+  startOfIsoWeekUtc,
+  startOfMonthUtc,
+} from "../utils";
+import type { IntervalsRepository } from "./intervals-repository";
 import {
   mapActivityToActivityValues,
   mapActivityToBestEffortRows,
@@ -25,11 +24,9 @@ import {
 } from "./mappers/activity-row-mapper";
 import { mapAthleteToProfileValues } from "./mappers/athlete-row-mapper";
 import {
-  computePaceSecPerKm,
-  isRunActivityType,
-  startOfIsoWeekUtc,
-  startOfMonthUtc,
-} from "../utils";
+  recomputeWeeklyGoalProgressForDates,
+  recomputeWeeklyGoalProgressForUser,
+} from "./recompute-weekly-goal-progress";
 
 const DASHBOARD_PR_TARGETS = [
   { prType: "fastest_1km", targetDistanceMeters: 1000 },
@@ -344,10 +341,13 @@ async function getUserWeekStartDay(userId: string): Promise<0 | 1> {
     return settings.weekStartDay === 0 ? 0 : 1;
   }
 
-  await db.insert(userSettings).values({
-    userId,
-    weekStartDay: 1,
-  }).onConflictDoNothing();
+  await db
+    .insert(userSettings)
+    .values({
+      userId,
+      weekStartDay: 1,
+    })
+    .onConflictDoNothing();
   return 1;
 }
 
@@ -418,11 +418,11 @@ async function recomputeWeeklyBucket({
   const stats = buildRollupStats(rows);
 
   await db
-    .delete(dashboardRunRollupWeekly)
+    .delete(runRollupWeekly)
     .where(
       and(
-        eq(dashboardRunRollupWeekly.userId, userId),
-        eq(dashboardRunRollupWeekly.weekStartLocal, weekStart),
+        eq(runRollupWeekly.userId, userId),
+        eq(runRollupWeekly.weekStartLocal, weekStart),
       ),
     );
 
@@ -430,7 +430,7 @@ async function recomputeWeeklyBucket({
     return;
   }
 
-  await db.insert(dashboardRunRollupWeekly).values({
+  await db.insert(runRollupWeekly).values({
     userId,
     weekStartLocal: weekStart,
     runCount: stats.runCount,
@@ -468,11 +468,11 @@ async function recomputeMonthlyBucket({
   const stats = buildRollupStats(rows);
 
   await db
-    .delete(dashboardRunRollupMonthly)
+    .delete(runRollupMonthly)
     .where(
       and(
-        eq(dashboardRunRollupMonthly.userId, userId),
-        eq(dashboardRunRollupMonthly.monthStartLocal, monthStart),
+        eq(runRollupMonthly.userId, userId),
+        eq(runRollupMonthly.monthStartLocal, monthStart),
       ),
     );
 
@@ -480,7 +480,7 @@ async function recomputeMonthlyBucket({
     return;
   }
 
-  await db.insert(dashboardRunRollupMonthly).values({
+  await db.insert(runRollupMonthly).values({
     userId,
     monthStartLocal: monthStart,
     runCount: stats.runCount,
@@ -541,29 +541,31 @@ async function recomputeAllRunRollups(userId: string) {
     }
   }
 
-  await db.delete(dashboardRunRollupWeekly).where(eq(dashboardRunRollupWeekly.userId, userId));
-  await db.delete(dashboardRunRollupMonthly).where(eq(dashboardRunRollupMonthly.userId, userId));
+  await db.delete(runRollupWeekly).where(eq(runRollupWeekly.userId, userId));
+  await db.delete(runRollupMonthly).where(eq(runRollupMonthly.userId, userId));
 
-  const weeklyValues = [...weeklyRows.entries()].flatMap(([weekStartIso, bucketRows]) => {
-    const stats = buildRollupStats(bucketRows);
-    if (!stats) {
-      return [];
-    }
-    return [
-      {
-        userId,
-        weekStartLocal: new Date(weekStartIso),
-        runCount: stats.runCount,
-        totalDistanceM: stats.totalDistanceM,
-        totalElapsedS: stats.totalElapsedS,
-        totalMovingS: stats.totalMovingS,
-        avgPaceSecPerKm: stats.avgPaceSecPerKm,
-      },
-    ];
-  });
+  const weeklyValues = [...weeklyRows.entries()].flatMap(
+    ([weekStartIso, bucketRows]) => {
+      const stats = buildRollupStats(bucketRows);
+      if (!stats) {
+        return [];
+      }
+      return [
+        {
+          userId,
+          weekStartLocal: new Date(weekStartIso),
+          runCount: stats.runCount,
+          totalDistanceM: stats.totalDistanceM,
+          totalElapsedS: stats.totalElapsedS,
+          totalMovingS: stats.totalMovingS,
+          avgPaceSecPerKm: stats.avgPaceSecPerKm,
+        },
+      ];
+    },
+  );
 
   if (weeklyValues.length > 0) {
-    await db.insert(dashboardRunRollupWeekly).values(weeklyValues);
+    await db.insert(runRollupWeekly).values(weeklyValues);
   }
 
   const monthlyValues = [...monthlyRows.entries()].flatMap(
@@ -587,7 +589,7 @@ async function recomputeAllRunRollups(userId: string) {
   );
 
   if (monthlyValues.length > 0) {
-    await db.insert(dashboardRunRollupMonthly).values(monthlyValues);
+    await db.insert(runRollupMonthly).values(monthlyValues);
   }
 }
 
@@ -718,8 +720,8 @@ async function recomputeRunPrs(userId: string) {
     });
   }
 
-  await db.delete(dashboardRunPr).where(eq(dashboardRunPr.userId, userId));
+  await db.delete(runPr).where(eq(runPr.userId, userId));
   if (prRows.length > 0) {
-    await db.insert(dashboardRunPr).values(prRows);
+    await db.insert(runPr).values(prRows);
   }
 }

@@ -93,26 +93,27 @@ function RouteComponent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <WeeklyDistanceCard weeklyMileage={data?.trends.weeklyMileage ?? []} />
-        <WeeklyPaceCard weeklyPace={data?.trends.averagePace ?? []} />
-      </div>
+      <div className="grid grid-cols-1 gap-x-4 gap-y-8 md:grid-cols-2">
+        <Empty className="bg-accent/20">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <BedIcon />
+            </EmptyMedia>
+            <EmptyTitle>No Workouts Scheduled for Today</EmptyTitle>
+            <EmptyDescription>
+              Today is a rest day. Enjoy your day off!
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold tracking-tight">Today</h2>
-          <Empty className="bg-accent/20 py-40">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <BedIcon />
-              </EmptyMedia>
-              <EmptyTitle>No Workouts Scheduled for Today</EmptyTitle>
-              <EmptyDescription>
-                Today is a rest day. Enjoy your day off!
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+        <div className="flex flex-col gap-2">
+          <WeeklyDistanceCard
+            weeklyMileage={data?.trends.weeklyMileage ?? []}
+          />
+          <WeeklyPaceCard weeklyPace={data?.trends.averagePace ?? []} />
         </div>
+
+        <div>Goals Placeholder + Maybe Prs</div>
 
         <div className="space-y-2">
           <div>

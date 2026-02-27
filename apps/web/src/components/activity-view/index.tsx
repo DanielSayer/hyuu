@@ -39,13 +39,18 @@ function ActivityView({ activity }: ActivityViewProps) {
       <div className="flex items-center justify-between">
         <div>
           {canGoBack ? (
-            <Button variant="link" onClick={() => router.history.back()}>
+            <Button
+              variant="link"
+              className="-ml-2.5"
+              onClick={() => router.history.back()}
+            >
               <ArrowLeftIcon className="size-4" />
               Back
             </Button>
           ) : (
             <Button
               variant="link"
+              className="-ml-2.5"
               render={
                 <Link to="/dashboard">
                   <ArrowLeftIcon className="size-4" />

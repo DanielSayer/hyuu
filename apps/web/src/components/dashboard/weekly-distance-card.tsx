@@ -134,7 +134,7 @@ export function WeeklyDistanceCard({ weeklyMileage }: WeeklyMileageCardProps) {
         </div>
 
         {/* Chart */}
-        <div className="col-span-2 h-36">
+        <div className="col-span-2 h-28">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}

@@ -25,7 +25,8 @@ export const columns = [
   }),
   columnHelper.accessor("distance", {
     header: () => <Header title="Distance" sub="km" />,
-    cell: ({ row }) => formatDistanceToKm(row.original.distance),
+    cell: ({ row }) =>
+      formatDistanceToKm(row.original.distance, { showUnit: false }),
     meta: {
       title: "Distance",
     },

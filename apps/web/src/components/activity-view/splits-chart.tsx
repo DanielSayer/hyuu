@@ -1,7 +1,11 @@
 import { formatSecondsToMinsPerKm } from "@hyuu/utils/pace";
 
 type SplitsChartProps = {
-  splits: { splitNumber: number; durationSeconds: number }[];
+  splits: {
+    splitNumber: number;
+    durationSeconds: number;
+    splitDistanceMeters: number;
+  }[];
 };
 
 function formatDiff(diffSeconds: number): string {
@@ -14,8 +18,7 @@ function formatDiff(diffSeconds: number): string {
 
 export function SplitsChart({ splits }: SplitsChartProps) {
   const splitsWithPace = splits.map((split) => {
-    // splitNumber < 1 means it's a partial km (e.g. 0.32 km)
-    const distance = split.splitNumber < 1 ? split.splitNumber : 1;
+    const distance = split.splitDistanceMeters / 1000;
     const pace = split.durationSeconds / distance; // seconds per km
     return { ...split, pace, distance };
   });

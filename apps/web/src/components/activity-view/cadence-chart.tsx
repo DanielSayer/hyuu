@@ -45,7 +45,7 @@ function CadenceChart({ activity }: { activity: Activity }) {
 
   const chartData: CadencePoint[] = cadenceStream.data
     .map((value, index) => {
-      if (typeof value !== "number" || !Number.isFinite(value)) {
+      if (typeof value !== "number" || !Number.isFinite(value) || value === 0) {
         return null;
       }
       return { second: index, cadence: value * 2 };
@@ -96,10 +96,9 @@ function CadenceChart({ activity }: { activity: Activity }) {
             axisLine={false}
             tickMargin={8}
             width={40}
-            domain={([dataMin, dataMax]) => [
-              Math.max(80, dataMin - 5),
-              dataMax + 5,
-            ]}
+            domain={([dataMin, dataMax]) => {
+              return [Math.max(80, dataMin - 5), dataMax + 5];
+            }}
           />
           <ChartTooltip cursor={false} content={<CadenceTooltip />} />
           <Scatter dataKey="cadence" shape={renderDot} />

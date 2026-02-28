@@ -14,12 +14,38 @@ export async function connectAthlete({
   repository: IntervalsRepository;
   now?: Date;
 }) {
-  const athlete = await gateway.fetchAthleteProfile(athleteId);
-  await repository.upsertAthleteProfile({
+  const syncRow = await repository.createSyncLogStarted({
     userId,
-    athlete,
-    now,
+    intervalsAthleteId: athleteId,
+    startedAt: now,
   });
 
-  return { athlete };
+  try {
+    const athlete = await gateway.fetchAthleteProfile(athleteId);
+    await repository.upsertAthleteProfile({
+      userId,
+      athlete,
+      now,
+    });
+
+    if (syncRow) {
+      await repository.completeSyncLogSuccess({
+        syncLogId: syncRow.id,
+        intervalsAthleteId: athlete.id,
+        completedAt: new Date(),
+        fetchedActivityCount: 0,
+      });
+    }
+
+    return { athlete };
+  } catch (error) {
+    if (syncRow) {
+      await repository.completeSyncLogFailed({
+        syncLogId: syncRow.id,
+        completedAt: new Date(),
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+    throw error;
+  }
 }

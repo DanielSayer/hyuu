@@ -94,9 +94,14 @@ function AppSidebar() {
                 />
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <TargetIcon /> Goals
-                </SidebarMenuButton>
+                <SidebarMenuButton
+                  isActive={location.pathname === "/goals"}
+                  render={
+                    <Link to="/goals">
+                      <TargetIcon /> Goals
+                    </Link>
+                  }
+                />
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>

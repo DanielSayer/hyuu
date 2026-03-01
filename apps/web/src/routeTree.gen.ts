@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrainingPlanRouteImport } from './routes/training-plan'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GoalsRouteImport } from './routes/goals'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as SettingsRouteRouteImport } from './routes/settings/route'
@@ -26,6 +27,11 @@ const TrainingPlanRoute = TrainingPlanRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GoalsRoute = GoalsRouteImport.update({
+  id: '/goals',
+  path: '/goals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/analytics': typeof AnalyticsRoute
   '/dashboard': typeof DashboardRoute
+  '/goals': typeof GoalsRoute
   '/login': typeof LoginRoute
   '/training-plan': typeof TrainingPlanRoute
   '/activity/$activityId': typeof ActivityActivityIdRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/analytics': typeof AnalyticsRoute
   '/dashboard': typeof DashboardRoute
+  '/goals': typeof GoalsRoute
   '/login': typeof LoginRoute
   '/training-plan': typeof TrainingPlanRoute
   '/activity/$activityId': typeof ActivityActivityIdRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/analytics': typeof AnalyticsRoute
   '/dashboard': typeof DashboardRoute
+  '/goals': typeof GoalsRoute
   '/login': typeof LoginRoute
   '/training-plan': typeof TrainingPlanRoute
   '/activity/$activityId': typeof ActivityActivityIdRoute
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/analytics'
     | '/dashboard'
+    | '/goals'
     | '/login'
     | '/training-plan'
     | '/activity/$activityId'
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/analytics'
     | '/dashboard'
+    | '/goals'
     | '/login'
     | '/training-plan'
     | '/activity/$activityId'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/analytics'
     | '/dashboard'
+    | '/goals'
     | '/login'
     | '/training-plan'
     | '/activity/$activityId'
@@ -128,6 +140,7 @@ export interface RootRouteChildren {
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   AnalyticsRoute: typeof AnalyticsRoute
   DashboardRoute: typeof DashboardRoute
+  GoalsRoute: typeof GoalsRoute
   LoginRoute: typeof LoginRoute
   TrainingPlanRoute: typeof TrainingPlanRoute
   ActivityActivityIdRoute: typeof ActivityActivityIdRoute
@@ -147,6 +160,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/goals': {
+      id: '/goals'
+      path: '/goals'
+      fullPath: '/goals'
+      preLoaderRoute: typeof GoalsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -211,6 +231,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
   AnalyticsRoute: AnalyticsRoute,
   DashboardRoute: DashboardRoute,
+  GoalsRoute: GoalsRoute,
   LoginRoute: LoginRoute,
   TrainingPlanRoute: TrainingPlanRoute,
   ActivityActivityIdRoute: ActivityActivityIdRoute,

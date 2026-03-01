@@ -58,7 +58,9 @@ export function SplitsChart({ splits }: SplitsChartProps) {
               className="grid grid-cols-[3.5rem_1fr_4.5rem] items-center"
             >
               <span className="text-foreground text-sm">
-                {split.splitNumber}
+                {split.distance === 1
+                  ? split.splitNumber
+                  : (split.splitNumber - 1 + split.distance).toFixed(2)}
               </span>
 
               <div className="pr-3">

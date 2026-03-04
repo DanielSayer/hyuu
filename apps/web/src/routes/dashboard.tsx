@@ -8,12 +8,12 @@ import {
 } from "@/components/dashboard/activity-preview";
 import { WeeklyDistanceCard } from "@/components/dashboard/weekly-distance-card";
 import { WeeklyPaceCard } from "@/components/dashboard/weekly-pace-card";
-import { GoalsCard } from "@/components/dashboard/goals-card";
 import { authClient } from "@/lib/auth-client";
 import {
   syncIntervalsActivities,
   type IntervalsSyncResponse,
 } from "@/lib/intervals/actions";
+import { mapGoals } from "@/lib/goals";
 import { cn, getErrorMessage, getGreeting } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,8 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { LoadingWrapper } from "@/components/loading-wrapper";
+import { DashboardGoalsWidget } from "@/components/dashboard/goals-card";
+import { useMemo } from "react";
 
 export const Route = createFileRoute("/dashboard")({
   component: RouteComponent,
@@ -64,6 +66,11 @@ function RouteComponent() {
   const handleSync = () => {
     syncMutation.mutate();
   };
+
+  const goals = useMemo(
+    () => mapGoals(data ? { goals: data.goals } : undefined),
+    [data],
+  );
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-4">
@@ -118,7 +125,7 @@ function RouteComponent() {
           />
         </div>
 
-        <GoalsCard goals={data?.goals ?? []} />
+        <DashboardGoalsWidget goals={goals} />
 
         <div className="space-y-2">
           <div>

@@ -1,6 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { formatDistanceToKm } from "@hyuu/utils/distance";
-import { formatSecondsToHms } from "@hyuu/utils/time";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 
 type GoalType = "distance" | "frequency" | "pace";
@@ -14,9 +12,6 @@ type GoalRowProps = {
     progressRatio: number;
     completedAt: string | Date | null;
   };
-  onEdit: () => void;
-  onArchive: () => void;
-  isArchiving: boolean;
 };
 
 function goalTypeLabel(goalType: GoalType) {
@@ -27,15 +22,21 @@ function goalTypeLabel(goalType: GoalType) {
 
 function formatGoalValue(goalType: GoalType, value: number) {
   if (goalType === "distance") {
-    return formatDistanceToKm(value);
+    return `${value.toFixed(2)} km`;
   }
   if (goalType === "frequency") {
     return `${Math.round(value)} runs`;
   }
-  return formatSecondsToHms(value * 60);
+  return `${formatPaceMinPerKm(value)} min/km`;
 }
 
-function GoalRow({ goal, onEdit, onArchive, isArchiving }: GoalRowProps) {
+function formatPaceMinPerKm(value: number) {
+  const minutes = Math.trunc(value);
+  const seconds = Math.round((value - minutes) * 100);
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function GoalRow({ goal }: GoalRowProps) {
   const progressPercent = Math.max(0, Math.min(goal.progressRatio, 1)) * 100;
   const overachievedBy = Math.max(0, goal.currentValue - goal.targetValue);
   const isComplete = goal.completedAt !== null;
@@ -44,26 +45,13 @@ function GoalRow({ goal, onEdit, onArchive, isArchiving }: GoalRowProps) {
     <div className="bg-accent/20 rounded-lg border p-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold">{goalTypeLabel(goal.goalType)}</p>
+          <p className="text-sm font-semibold">
+            {goalTypeLabel(goal.goalType)}
+          </p>
           <p className="text-muted-foreground text-xs">
             {formatGoalValue(goal.goalType, goal.currentValue)} /{" "}
             {formatGoalValue(goal.goalType, goal.targetValue)}
           </p>
-        </div>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon-xs" onClick={onEdit}>
-            <PencilIcon />
-            <span className="sr-only">Edit goal</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={onArchive}
-            disabled={isArchiving}
-          >
-            <Trash2Icon />
-            <span className="sr-only">Archive goal</span>
-          </Button>
         </div>
       </div>
 

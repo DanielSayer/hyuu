@@ -45,12 +45,16 @@ export function StepCadenceTarget({
             {selectedGoal.title}
           </Badge>
         </div>
-        <h2 className="text-foreground text-lg font-semibold">Set your target</h2>
+        <h2 className="text-foreground text-lg font-semibold">
+          Set your target
+        </h2>
         <p className="text-muted-foreground text-sm">How often and how much?</p>
       </div>
 
       <div className="space-y-3">
-        <Label className="text-muted-foreground text-sm font-medium">Cadence</Label>
+        <Label className="text-muted-foreground text-sm font-medium">
+          Cadence
+        </Label>
         <div className="grid grid-cols-2 gap-3">
           {cadenceOptions.map((option) => {
             const Icon = option.icon;
@@ -75,7 +79,9 @@ export function StepCadenceTarget({
                     )}
                   />
                   <div>
-                    <p className="text-foreground font-medium">{option.label}</p>
+                    <p className="text-foreground font-medium">
+                      {option.label}
+                    </p>
                     <p className="text-muted-foreground text-xs">
                       {option.description}
                     </p>
@@ -117,23 +123,33 @@ export function StepCadenceTarget({
         </p>
       </div>
 
-      <div className="border-border bg-card flex items-center justify-between rounded-xl border p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
-            <Flame className="h-5 w-5 text-orange-400" />
+      {selectedGoal.type === "frequency" && (
+        <div className="border-border bg-card flex items-center justify-between rounded-xl border p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
+              <Flame className="h-5 w-5 text-orange-400" />
+            </div>
+            <div>
+              <p className="text-foreground font-medium">Track streak</p>
+              <p className="text-muted-foreground text-xs">
+                Keep a streak count when you hit your goal consecutively
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-foreground font-medium">Track streak</p>
-            <p className="text-muted-foreground text-xs">
-              Keep a streak count when you hit your goal consecutively
-            </p>
-          </div>
+          <Switch
+            checked={form.trackStreak}
+            onCheckedChange={onTrackStreakChange}
+          />
         </div>
-        <Switch checked={form.trackStreak} onCheckedChange={onTrackStreakChange} />
-      </div>
+      )}
 
       <div className="pt-4">
-        <Button className="w-full" size="lg" disabled={!canProceed} onClick={onContinue}>
+        <Button
+          className="w-full"
+          size="lg"
+          disabled={!canProceed}
+          onClick={onContinue}
+        >
           Review Goal
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>

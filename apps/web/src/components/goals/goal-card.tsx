@@ -5,79 +5,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  formatGoalValue,
+  getDaysUntilGoalReset,
+  getGoalProgressPercent,
+  goalTypeConfig,
+  type Goal,
+} from "@/lib/goals";
 import { cn } from "@/lib/utils";
 import {
   Flame,
-  MapPin,
   MoreHorizontal,
   Pencil,
-  Repeat,
-  Timer,
   Trash2,
-  type LucideIcon,
 } from "lucide-react";
 import { Badge } from "../ui/badge";
-
-type GoalType = "distance" | "frequency" | "pace";
-type GoalCadence = "weekly" | "monthly";
-type GoalStatus = "on-track" | "at-risk" | "behind" | "completed";
-
-interface Goal {
-  id: number;
-  goalType: GoalType;
-  cadence: GoalCadence;
-  targetValue: number;
-  currentValue: number;
-  trackStreak: boolean;
-  currentStreak: number;
-  bestStreak: number;
-  status: GoalStatus;
-  resetsAt: string;
-}
-
-function getProgressPercent(goal: Goal): number {
-  if (goal.goalType === "pace") {
-    // For pace, lower is better. Progress = how close current is to target.
-    // If target is 5.30 and current is 5.52, that's partial progress.
-    // If current <= target, that's 100%.
-    if (goal.currentValue <= goal.targetValue) return 100;
-    const start = goal.targetValue + 1; // assume starting ~1 min slower
-    const progress =
-      ((start - goal.currentValue) / (start - goal.targetValue)) * 100;
-    return Math.max(0, Math.min(100, progress));
-  }
-  return Math.min(100, (goal.currentValue / goal.targetValue) * 100);
-}
-
-function formatValue(value: number, goalType: GoalType): string {
-  if (goalType === "pace") {
-    const mins = Math.floor(value);
-    const secs = Math.round((value - mins) * 100);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  }
-  if (goalType === "distance") {
-    return value % 1 === 0 ? value.toString() : value.toFixed(1);
-  }
-  return value.toString();
-}
-
-function getDaysUntilReset(resetsAt: string): number {
-  const now = new Date();
-  const reset = new Date(resetsAt);
-  const diff = Math.ceil(
-    (reset.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-  );
-  return Math.max(0, diff);
-}
-
-const goalTypeConfig: Record<
-  GoalType,
-  { label: string; unit: string; icon: LucideIcon }
-> = {
-  distance: { label: "Distance", unit: "km", icon: MapPin },
-  frequency: { label: "Frequency", unit: "runs", icon: Repeat },
-  pace: { label: "Pace", unit: "min/km", icon: Timer },
-};
 
 function GoalCard({
   goal,
@@ -92,8 +34,8 @@ function GoalCard({
 }) {
   const config = goalTypeConfig[goal.goalType];
   const Icon = config.icon;
-  const progress = getProgressPercent(goal);
-  const daysLeft = getDaysUntilReset(goal.resetsAt);
+  const progress = getGoalProgressPercent(goal);
+  const daysLeft = getDaysUntilGoalReset(goal.resetsAt);
 
   const accent =
     goal.status === "completed"
@@ -182,7 +124,7 @@ function GoalCard({
                   accent.text,
                 )}
               >
-                {formatValue(goal.currentValue, goal.goalType)}
+                {formatGoalValue(goal.currentValue, goal.goalType)}
               </span>
               <span className="pb-0.5 text-sm font-medium text-white/20">
                 {config.unit}
@@ -194,7 +136,7 @@ function GoalCard({
               Target
             </p>
             <span className="text-lg font-semibold text-white/35 tabular-nums">
-              {formatValue(goal.targetValue, goal.goalType)}
+              {formatGoalValue(goal.targetValue, goal.goalType)}
             </span>
           </div>
         </div>
@@ -228,7 +170,7 @@ function GoalCard({
           </span>
           {goal.goalType !== "pace" && goal.status !== "completed" && (
             <span className="text-[10px] font-medium text-white/25 tabular-nums">
-              {formatValue(goal.targetValue - goal.currentValue, goal.goalType)}{" "}
+              {formatGoalValue(goal.targetValue - goal.currentValue, goal.goalType)}{" "}
               {config.unit} remaining
             </span>
           )}

@@ -4,7 +4,6 @@ import {
   computePaceSecPerKm,
   isRunActivityType,
   startOfIsoWeekUtc,
-  startOfMonthUtc,
   toLocalDateOrNull,
   toLocalDateTimeString,
 } from "../../utils";
@@ -19,21 +18,13 @@ export async function getDashboard(userId: string) {
   previousWindowEnd.setUTCDate(previousWindowEnd.getUTCDate() - 7);
   const oldestWeekStart = new Date(currentWeekStart);
   oldestWeekStart.setUTCDate(oldestWeekStart.getUTCDate() - 7 * 12);
-  const currentMonthStart = startOfMonthUtc(now);
-  const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
   const goalsDataPromise = loadGoalsWithProgress({
     userId,
     now,
   });
-  const [
-    weeklyRows,
-    monthlyRows,
-    prRows,
-    latestSuccessfulSync,
-    goalsData,
-    weeklyWindowRows,
-  ] = await Promise.all([
+  const [weeklyRows, latestSuccessfulSync, goalsData, weeklyWindowRows] =
+    await Promise.all([
       db.query.runRollupWeekly.findMany({
         where: (table, operators) =>
           operators.and(
@@ -46,29 +37,6 @@ export async function getDashboard(userId: string) {
           weekStartLocal: true,
           totalDistanceM: true,
           avgPaceSecPerKm: true,
-        },
-      }),
-      db.query.runRollupMonthly.findMany({
-        where: (table, operators) =>
-          operators.and(
-            operators.eq(table.userId, userId),
-            operators.gte(table.monthStartLocal, yearStart),
-            operators.lte(table.monthStartLocal, currentMonthStart),
-          ),
-        orderBy: (table, operators) => [operators.asc(table.monthStartLocal)],
-        columns: {
-          monthStartLocal: true,
-          totalDistanceM: true,
-          totalElapsedS: true,
-        },
-      }),
-      db.query.runPr.findMany({
-        where: (table, operators) => operators.eq(table.userId, userId),
-        columns: {
-          prType: true,
-          valueSeconds: true,
-          valueDistanceM: true,
-          activityStartDate: true,
         },
       }),
       db.query.intervalsSyncLog.findFirst({
@@ -104,20 +72,6 @@ export async function getDashboard(userId: string) {
       }),
     ]);
 
-  const monthlyByStart = new Map(
-    monthlyRows.map((row) => [row.monthStartLocal.toISOString(), row]),
-  );
-  const currentMonth = monthlyByStart.get(currentMonthStart.toISOString());
-  const yearlyTotals = monthlyRows.reduce(
-    (acc, row) => ({
-      totalDistanceM: acc.totalDistanceM + (row.totalDistanceM ?? 0),
-      totalElapsedS: acc.totalElapsedS + (row.totalElapsedS ?? 0),
-    }),
-    { totalDistanceM: 0, totalElapsedS: 0 },
-  );
-
-  const prByType = new Map(prRows.map((row) => [row.prType, row]));
-
   const weeklyMileage = weeklyRows.map((row) => {
     const distanceMeters = row.totalDistanceM ?? 0;
     return {
@@ -145,10 +99,7 @@ export async function getDashboard(userId: string) {
       continue;
     }
 
-    if (
-      rowStartLocal >= currentWeekStart &&
-      rowStartLocal < now
-    ) {
+    if (rowStartLocal >= currentWeekStart && rowStartLocal < now) {
       thisWindowDistanceM += row.distance ?? 0;
       thisWindowElapsedS += row.elapsedTime ?? 0;
       continue;
@@ -165,20 +116,6 @@ export async function getDashboard(userId: string) {
 
   return {
     lastSyncedAt: latestSuccessfulSync?.completedAt ?? null,
-    kpis: {
-      distanceThisYear: yearlyTotals.totalDistanceM,
-      timeRunThisYear: yearlyTotals.totalElapsedS,
-      distanceThisMonth: currentMonth?.totalDistanceM ?? 0,
-      timeRunThisMonth: currentMonth?.totalElapsedS ?? 0,
-    },
-    personalRecords: {
-      fastest1km: prByType.get("fastest_1km")?.valueSeconds ?? 0,
-      fastest5k: prByType.get("fastest_5k")?.valueSeconds ?? 0,
-      fastest10k: prByType.get("fastest_10k")?.valueSeconds ?? 0,
-      fastestHalf: prByType.get("fastest_half")?.valueSeconds ?? 0,
-      fastestFull: prByType.get("fastest_full")?.valueSeconds ?? 0,
-      longestRunEver: prByType.get("longest_run")?.valueDistanceM ?? 0,
-    },
     trends: {
       weeklyMileage,
       averagePace: paceTrend,

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { GoalCadence } from "./types";
 import type { GoalTypeOption } from "./constants";
+import { DialogClose } from "@/components/ui/dialog";
 
 interface StepSuccessProps {
   selectedGoal: GoalTypeOption;
@@ -42,7 +43,10 @@ export function StepSuccess({
           selectedGoal.type === "pace" && "bg-amber-500/10",
         )}
       >
-        <Check className={cn("h-10 w-10", selectedGoal.iconColor)} strokeWidth={2.5} />
+        <Check
+          className={cn("h-10 w-10", selectedGoal.iconColor)}
+          strokeWidth={2.5}
+        />
       </motion.div>
 
       <h2 className="text-foreground mb-2 text-2xl font-bold">Goal created!</h2>
@@ -51,14 +55,15 @@ export function StepSuccess({
         <span className="text-foreground font-semibold">
           {targetValue} {selectedGoal.unit}
         </span>{" "}
-        every {cadence === "weekly" ? "week" : "month"}. Let&apos;s get after it.
+        every {cadence === "weekly" ? "week" : "month"}. Let&apos;s get after
+        it.
       </p>
 
       <div className="flex gap-3">
         <Button variant="outline" onClick={onReset}>
           Create Another
         </Button>
-        <Button>View My Goals</Button>
+        <DialogClose render={<Button>View My Goals</Button>} />
       </div>
     </motion.div>
   );

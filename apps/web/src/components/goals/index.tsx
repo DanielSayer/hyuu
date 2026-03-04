@@ -9,38 +9,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getErrorMessage } from "@/lib/utils";
-import { queryClient, trpc, trpcClient, type TRPCResult } from "@/utils/trpc";
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { mapGoals, type Goal, type GoalType } from "@/lib/goals";
+import { getErrorMessage } from "@/lib/utils";
+import { queryClient, trpc, trpcClient } from "@/utils/trpc";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Target } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { CreateGoalWizard } from "./create-goal-wizard";
 import { GoalCard } from "./goal-card";
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-type GoalType = "distance" | "frequency" | "pace";
-type GoalCadence = "weekly" | "monthly";
-type GoalStatus = "on-track" | "at-risk" | "behind" | "completed";
-
-interface Goal {
-  id: number;
-  goalType: GoalType;
-  cadence: GoalCadence;
-  targetValue: number;
-  currentValue: number;
-  trackStreak: boolean;
-  currentStreak: number;
-  bestStreak: number;
-  status: GoalStatus;
-  resetsAt: string;
-}
-
-type GoalsListResult = TRPCResult<typeof trpc.goals.list.queryOptions>;
-type ApiGoal = GoalsListResult["goals"][number];
 
 function EmptyState() {
   return (
@@ -89,57 +68,10 @@ function StatsBar({ goals }: { goals: Goal[] }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 
-function getGoalStatus(goal: ApiGoal): GoalStatus {
-  if (goal.completedAt) {
-    return "completed";
-  }
-  const ratio = Math.max(0, Math.min(1, goal.progressRatio));
-  if (ratio < 0.4) {
-    return "behind";
-  }
-  if (ratio < 0.8) {
-    return "at-risk";
-  }
-  return "on-track";
-}
-
-function toDate(value: Date | string) {
-  return value instanceof Date ? value : new Date(value);
-}
-
-function computeResetsAt(goal: ApiGoal, weekStart: Date | string) {
-  if (goal.cadence === "weekly") {
-    const date = toDate(weekStart);
-    date.setUTCDate(date.getUTCDate() + 7);
-    return date.toISOString();
-  }
-  const now = new Date();
-  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  return nextMonth.toISOString();
-}
-
-function mapGoals(data: GoalsListResult | undefined): Goal[] {
-  if (!data) {
-    return [];
-  }
-  return data.goals.map((goal) => {
-    const currentStreak = goal.streak?.currentWeeks ?? 0;
-    return {
-      id: goal.id,
-      goalType: goal.goalType,
-      cadence: goal.cadence,
-      targetValue: goal.targetValue,
-      currentValue: goal.currentValue,
-      trackStreak: goal.streak !== null,
-      currentStreak,
-      bestStreak: currentStreak,
-      status: getGoalStatus(goal),
-      resetsAt: computeResetsAt(goal, data.weekStart),
-    };
-  });
-}
-
-function validateTargetValue(goalType: GoalType, targetValueRaw: string): number {
+function validateTargetValue(
+  goalType: GoalType,
+  targetValueRaw: string,
+): number {
   const targetValue = Number(targetValueRaw);
   if (!Number.isFinite(targetValue) || targetValue <= 0) {
     throw new Error("Target must be a positive number.");
@@ -173,7 +105,8 @@ export function GoalsPage() {
   });
 
   const archiveGoalMutation = useMutation({
-    mutationFn: (input: { id: number }) => trpcClient.goals.archive.mutate(input),
+    mutationFn: (input: { id: number }) =>
+      trpcClient.goals.archive.mutate(input),
     onSuccess: async () => {
       await queryClient.invalidateQueries(trpc.goals.list.queryOptions());
       toast.success("Goal archived.");
@@ -194,7 +127,10 @@ export function GoalsPage() {
       return;
     }
     try {
-      const targetValue = validateTargetValue(editingGoal.goalType, targetValueRaw);
+      const targetValue = validateTargetValue(
+        editingGoal.goalType,
+        targetValueRaw,
+      );
       updateGoalMutation.mutate({
         id: editingGoal.id,
         targetValue,
@@ -270,7 +206,9 @@ export function GoalsPage() {
                         key={goal.id}
                         goal={goal}
                         onEdit={() => handleEditGoal(goal)}
-                        onArchive={() => archiveGoalMutation.mutate({ id: goal.id })}
+                        onArchive={() =>
+                          archiveGoalMutation.mutate({ id: goal.id })
+                        }
                         isArchiving={archiveGoalMutation.isPending}
                       />
                     ))}
@@ -290,7 +228,9 @@ export function GoalsPage() {
                         key={goal.id}
                         goal={goal}
                         onEdit={() => handleEditGoal(goal)}
-                        onArchive={() => archiveGoalMutation.mutate({ id: goal.id })}
+                        onArchive={() =>
+                          archiveGoalMutation.mutate({ id: goal.id })
+                        }
                         isArchiving={archiveGoalMutation.isPending}
                       />
                     ))}
@@ -305,7 +245,9 @@ export function GoalsPage() {
                       key={goal.id}
                       goal={goal}
                       onEdit={() => handleEditGoal(goal)}
-                      onArchive={() => archiveGoalMutation.mutate({ id: goal.id })}
+                      onArchive={() =>
+                        archiveGoalMutation.mutate({ id: goal.id })
+                      }
                       isArchiving={archiveGoalMutation.isPending}
                     />
                   ))}
@@ -341,7 +283,9 @@ export function GoalsPage() {
             </Button>
             <Button
               onClick={handleSubmitEdit}
-              disabled={updateGoalMutation.isPending || targetValueRaw.length === 0}
+              disabled={
+                updateGoalMutation.isPending || targetValueRaw.length === 0
+              }
             >
               Save
             </Button>

@@ -7,6 +7,7 @@ import { isRunActivityType } from "../../utils/activities";
 import {
   getGoalProgressRatio,
   isGoalCompleted,
+  toGoalDisplayValue,
   toWeekStartDay,
 } from "../../utils/goals";
 import {
@@ -216,6 +217,7 @@ export async function loadGoalsWithProgress({
       const currentValue =
         progressRow?.currentValue ??
         (fallbackMetrics ? fallbackMetrics[goalType] : 0);
+      const currentDisplayValue = toGoalDisplayValue(goalType, currentValue);
       const targetValue = goal.targetValue;
       const completedAt =
         progressRow?.completedAt ??
@@ -236,7 +238,7 @@ export async function loadGoalsWithProgress({
           goalType,
           cadence,
           targetValue,
-          currentValue,
+          currentValue: currentDisplayValue,
           progressRatio,
           completedAt,
           isStreakGoal,
@@ -301,7 +303,7 @@ export async function loadGoalsWithProgress({
       cadence: row.cadence,
       periodStartLocal: row.periodStartLocal,
       targetValue: row.goal.targetValue,
-      currentValue: row.currentValue,
+      currentValue: toGoalDisplayValue(row.goal.goalType, row.currentValue),
       completedAt: row.completedAt,
     }));
   const archivedGoals = await db.query.goal.findMany({

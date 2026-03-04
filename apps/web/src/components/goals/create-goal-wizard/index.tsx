@@ -23,6 +23,7 @@ import type { GoalCadence, GoalFormState, GoalType } from "./types";
 import { WizardProgressHeader } from "./wizard-progress-header";
 
 function CreateGoalWizard() {
+  const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<GoalFormState>({
     goalType: null,
@@ -91,8 +92,15 @@ function CreateGoalWizard() {
     setStep(0);
   };
 
+  const handleOpenChange = (open: boolean) => {
+    setOpen(open);
+    if (!open && step === 3) {
+      handleReset();
+    }
+  };
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
           <Button>

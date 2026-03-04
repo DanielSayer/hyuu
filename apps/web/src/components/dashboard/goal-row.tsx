@@ -3,7 +3,7 @@ import { formatDistanceToKm } from "@hyuu/utils/distance";
 import { formatSecondsToHms } from "@hyuu/utils/time";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 
-type GoalType = "distance" | "activity_count" | "time" | "streak";
+type GoalType = "distance" | "frequency" | "pace";
 
 type GoalRowProps = {
   goal: {
@@ -12,7 +12,7 @@ type GoalRowProps = {
     targetValue: number;
     currentValue: number;
     progressRatio: number;
-    isComplete: boolean;
+    completedAt: string | Date | null;
   };
   onEdit: () => void;
   onArchive: () => void;
@@ -21,27 +21,24 @@ type GoalRowProps = {
 
 function goalTypeLabel(goalType: GoalType) {
   if (goalType === "distance") return "Distance";
-  if (goalType === "activity_count") return "Runs";
-  if (goalType === "time") return "Run time";
-  return "Streak";
+  if (goalType === "frequency") return "Runs";
+  return "Pace";
 }
 
 function formatGoalValue(goalType: GoalType, value: number) {
   if (goalType === "distance") {
     return formatDistanceToKm(value);
   }
-  if (goalType === "time") {
-    return formatSecondsToHms(value);
-  }
-  if (goalType === "activity_count") {
+  if (goalType === "frequency") {
     return `${Math.round(value)} runs`;
   }
-  return `${Math.round(value)} days`;
+  return formatSecondsToHms(value * 60);
 }
 
 function GoalRow({ goal, onEdit, onArchive, isArchiving }: GoalRowProps) {
   const progressPercent = Math.max(0, Math.min(goal.progressRatio, 1)) * 100;
   const overachievedBy = Math.max(0, goal.currentValue - goal.targetValue);
+  const isComplete = goal.completedAt !== null;
 
   return (
     <div className="bg-accent/20 rounded-lg border p-3">
@@ -72,13 +69,13 @@ function GoalRow({ goal, onEdit, onArchive, isArchiving }: GoalRowProps) {
 
       <div className="bg-muted mt-3 h-2 w-full overflow-hidden rounded-full">
         <div
-          className={`h-2 rounded-full ${goal.isComplete ? "bg-emerald-500" : "bg-primary"}`}
+          className={`h-2 rounded-full ${isComplete ? "bg-emerald-500" : "bg-primary"}`}
           style={{ width: `${progressPercent}%` }}
         />
       </div>
 
       <p className="text-muted-foreground mt-2 text-xs">
-        {goal.isComplete
+        {isComplete
           ? overachievedBy > 0
             ? `Complete (+${formatGoalValue(goal.goalType, overachievedBy)})`
             : "Complete"

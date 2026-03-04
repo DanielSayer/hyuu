@@ -27,12 +27,12 @@ import { queryClient, trpc, trpcClient, type TRPCResult } from "@/utils/trpc";
 
 type DashboardGoal = TRPCResult<typeof trpc.dashboard.queryOptions>["goals"][number];
 type GoalType = DashboardGoal["goalType"];
+type GoalCadence = DashboardGoal["cadence"];
 
 const GOAL_TYPE_OPTIONS: Array<{ value: GoalType; label: string }> = [
   { value: "distance", label: "Distance (meters)" },
-  { value: "activity_count", label: "Activity count (runs)" },
-  { value: "time", label: "Duration (seconds)" },
-  { value: "streak", label: "Streak (days per week)" },
+  { value: "frequency", label: "Frequency (runs)" },
+  { value: "pace", label: "Pace (min/km)" },
 ];
 
 function validateTargetValue(goalType: GoalType, targetValueRaw: string): number {
@@ -40,11 +40,11 @@ function validateTargetValue(goalType: GoalType, targetValueRaw: string): number
   if (!Number.isFinite(targetValue) || targetValue <= 0) {
     throw new Error("Target must be a positive number.");
   }
-  if ((goalType === "activity_count" || goalType === "streak") && !Number.isInteger(targetValue)) {
-    throw new Error("Count and streak targets must be whole numbers.");
+  if (goalType === "frequency" && !Number.isInteger(targetValue)) {
+    throw new Error("Frequency targets must be whole numbers.");
   }
-  if (goalType === "streak" && (targetValue < 1 || targetValue > 7)) {
-    throw new Error("Streak target must be between 1 and 7.");
+  if (goalType === "frequency" && (targetValue < 1 || targetValue > 31)) {
+    throw new Error("Frequency target must be between 1 and 31.");
   }
   return targetValue;
 }
@@ -53,10 +53,15 @@ function GoalsCard({ goals }: { goals: DashboardGoal[] }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<DashboardGoal | null>(null);
   const [goalType, setGoalType] = useState<GoalType>("distance");
+  const [cadence, setCadence] = useState<GoalCadence>("weekly");
   const [targetValueRaw, setTargetValueRaw] = useState("");
 
   const createGoalMutation = useMutation({
-    mutationFn: (input: { goalType: GoalType; targetValue: number }) =>
+    mutationFn: (input: {
+      goalType: GoalType;
+      cadence: GoalCadence;
+      targetValue: number;
+    }) =>
       trpcClient.goals.create.mutate(input),
     onSuccess: async () => {
       await queryClient.invalidateQueries(trpc.dashboard.queryOptions());
@@ -99,6 +104,7 @@ function GoalsCard({ goals }: { goals: DashboardGoal[] }) {
   const handleCreate = () => {
     setEditingGoal(null);
     setGoalType("distance");
+    setCadence("weekly");
     setTargetValueRaw("");
     setDialogOpen(true);
   };
@@ -106,6 +112,7 @@ function GoalsCard({ goals }: { goals: DashboardGoal[] }) {
   const handleEdit = (goal: DashboardGoal) => {
     setEditingGoal(goal);
     setGoalType(goal.goalType);
+    setCadence(goal.cadence);
     setTargetValueRaw(String(goal.targetValue));
     setDialogOpen(true);
   };
@@ -121,6 +128,7 @@ function GoalsCard({ goals }: { goals: DashboardGoal[] }) {
       } else {
         createGoalMutation.mutate({
           goalType,
+          cadence,
           targetValue,
         });
       }
@@ -190,6 +198,31 @@ function GoalsCard({ goals }: { goals: DashboardGoal[] }) {
                       {option.label}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="goal-cadence">Cadence</Label>
+              <Select
+                items={[
+                  { value: "weekly", label: "Weekly" },
+                  { value: "monthly", label: "Monthly" },
+                ]}
+                value={cadence}
+                onValueChange={(value) => {
+                  if (value) {
+                    setCadence(value as GoalCadence);
+                  }
+                }}
+                disabled={!!editingGoal}
+              >
+                <SelectTrigger id="goal-cadence" className="w-full">
+                  <SelectValue placeholder="Select cadence" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
                 </SelectContent>
               </Select>
             </div>

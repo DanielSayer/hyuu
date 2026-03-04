@@ -10,7 +10,6 @@ import {
   Flame,
   MapPin,
   MoreHorizontal,
-  Pause,
   Pencil,
   Repeat,
   Timer,
@@ -24,7 +23,7 @@ type GoalCadence = "weekly" | "monthly";
 type GoalStatus = "on-track" | "at-risk" | "behind" | "completed";
 
 interface Goal {
-  id: string;
+  id: number;
   goalType: GoalType;
   cadence: GoalCadence;
   targetValue: number;
@@ -33,7 +32,6 @@ interface Goal {
   currentStreak: number;
   bestStreak: number;
   status: GoalStatus;
-  createdAt: string;
   resetsAt: string;
 }
 
@@ -64,7 +62,7 @@ function formatValue(value: number, goalType: GoalType): string {
 }
 
 function getDaysUntilReset(resetsAt: string): number {
-  const now = new Date("2026-02-28");
+  const now = new Date();
   const reset = new Date(resetsAt);
   const diff = Math.ceil(
     (reset.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
@@ -81,7 +79,17 @@ const goalTypeConfig: Record<
   pace: { label: "Pace", unit: "min/km", icon: Timer },
 };
 
-function GoalCard({ goal }: { goal: Goal }) {
+function GoalCard({
+  goal,
+  onEdit,
+  onArchive,
+  isArchiving,
+}: {
+  goal: Goal;
+  onEdit: () => void;
+  onArchive: () => void;
+  isArchiving: boolean;
+}) {
   const config = goalTypeConfig[goal.goalType];
   const Icon = config.icon;
   const progress = getProgressPercent(goal);
@@ -143,15 +151,17 @@ function GoalCard({ goal }: { goal: Goal }) {
               }
             />
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="text-xs">
+              <DropdownMenuItem className="text-xs" onClick={onEdit}>
                 <Pencil className="mr-2 h-3 w-3" /> Edit
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-xs">
-                <Pause className="mr-2 h-3 w-3" /> Pause
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" className="text-xs">
-                <Trash2 className="mr-2 h-3 w-3" /> Delete
+              <DropdownMenuItem
+                variant="destructive"
+                className="text-xs"
+                onClick={onArchive}
+                disabled={isArchiving}
+              >
+                <Trash2 className="mr-2 h-3 w-3" /> Archive
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

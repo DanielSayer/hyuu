@@ -2,6 +2,9 @@ import { useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { queryClient, trpc, trpcClient } from "@/utils/trpc";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { getErrorMessage } from "@/lib/utils";
 import { cadenceOptions, goalTypes } from "./constants";
 import { StepCadenceTarget } from "./step-cadence-target";
 import { StepGoalType } from "./step-goal-type";
@@ -28,6 +32,22 @@ function CreateGoalWizard() {
   });
 
   const selectedGoal = goalTypes.find((goal) => goal.type === form.goalType);
+  const createGoalMutation = useMutation({
+    mutationFn: (input: {
+      goalType: GoalType;
+      cadence: GoalCadence;
+      targetValue: number;
+      trackStreak?: boolean;
+    }) => trpcClient.goals.create.mutate(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(trpc.goals.list.queryOptions());
+      toast.success("Goal created.");
+      setStep(3);
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Failed to create goal."));
+    },
+  });
 
   const canProceedStep1 = form.goalType !== null;
   const canProceedStep2 =
@@ -58,8 +78,7 @@ function CreateGoalWizard() {
       targetValue: Number(form.targetValue),
       trackStreak: form.trackStreak || undefined,
     };
-    console.log("Creating goal:", payload);
-    setStep(3);
+    createGoalMutation.mutate(payload);
   };
 
   const handleReset = () => {

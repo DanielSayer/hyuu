@@ -1,7 +1,21 @@
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { getErrorMessage } from "@/lib/utils";
+import { queryClient, trpc, trpcClient, type TRPCResult } from "@/utils/trpc";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Target } from "lucide-react";
-import { useState } from "react";
+import { Target } from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { CreateGoalWizard } from "./create-goal-wizard";
 import { GoalCard } from "./goal-card";
@@ -13,7 +27,7 @@ type GoalCadence = "weekly" | "monthly";
 type GoalStatus = "on-track" | "at-risk" | "behind" | "completed";
 
 interface Goal {
-  id: string;
+  id: number;
   goalType: GoalType;
   cadence: GoalCadence;
   targetValue: number;
@@ -22,81 +36,13 @@ interface Goal {
   currentStreak: number;
   bestStreak: number;
   status: GoalStatus;
-  createdAt: string;
   resetsAt: string;
 }
 
-// ── Mock Data ────────────────────────────────────────────────────────────────
+type GoalsListResult = TRPCResult<typeof trpc.goals.list.queryOptions>;
+type ApiGoal = GoalsListResult["goals"][number];
 
-const mockGoals: Goal[] = [
-  {
-    id: "1",
-    goalType: "distance",
-    cadence: "weekly",
-    targetValue: 30,
-    currentValue: 22.4,
-    trackStreak: true,
-    currentStreak: 5,
-    bestStreak: 8,
-    status: "on-track",
-    createdAt: "2026-01-15",
-    resetsAt: "2026-03-02",
-  },
-  {
-    id: "2",
-    goalType: "frequency",
-    cadence: "weekly",
-    targetValue: 4,
-    currentValue: 2,
-    trackStreak: true,
-    currentStreak: 3,
-    bestStreak: 12,
-    status: "on-track",
-    createdAt: "2026-02-01",
-    resetsAt: "2026-03-02",
-  },
-  {
-    id: "3",
-    goalType: "pace",
-    cadence: "monthly",
-    targetValue: 5.3,
-    currentValue: 5.52,
-    trackStreak: false,
-    currentStreak: 0,
-    bestStreak: 0,
-    status: "at-risk",
-    createdAt: "2026-02-10",
-    resetsAt: "2026-03-01",
-  },
-  {
-    id: "4",
-    goalType: "distance",
-    cadence: "monthly",
-    targetValue: 100,
-    currentValue: 41.7,
-    trackStreak: true,
-    currentStreak: 0,
-    bestStreak: 2,
-    status: "behind",
-    createdAt: "2026-01-01",
-    resetsAt: "2026-03-01",
-  },
-  {
-    id: "5",
-    goalType: "frequency",
-    cadence: "monthly",
-    targetValue: 15,
-    currentValue: 15,
-    trackStreak: true,
-    currentStreak: 4,
-    bestStreak: 4,
-    status: "completed",
-    createdAt: "2026-01-20",
-    resetsAt: "2026-03-01",
-  },
-];
-
-function EmptyState({ onCreateGoal }: { onCreateGoal: () => void }) {
+function EmptyState() {
   return (
     <div className="border-border flex flex-col items-center justify-center rounded-xl border border-dashed py-20">
       <div className="bg-muted mb-4 flex h-14 w-14 items-center justify-center rounded-full">
@@ -107,10 +53,7 @@ function EmptyState({ onCreateGoal }: { onCreateGoal: () => void }) {
         Set a distance, frequency, or pace goal to stay accountable and track
         your progress over time.
       </p>
-      <Button onClick={onCreateGoal}>
-        <Plus className="mr-2 h-4 w-4" />
-        Create Your First Goal
-      </Button>
+      <CreateGoalWizard />
     </div>
   );
 }
@@ -146,12 +89,119 @@ function StatsBar({ goals }: { goals: Goal[] }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 
-export function GoalsPage() {
-  const [goals] = useState<Goal[]>(mockGoals);
+function getGoalStatus(goal: ApiGoal): GoalStatus {
+  if (goal.completedAt) {
+    return "completed";
+  }
+  const ratio = Math.max(0, Math.min(1, goal.progressRatio));
+  if (ratio < 0.4) {
+    return "behind";
+  }
+  if (ratio < 0.8) {
+    return "at-risk";
+  }
+  return "on-track";
+}
 
-  const handleCreateGoal = () => {
-    // Open your wizard here — modal, drawer, or navigate to /goals/new
-    console.log("Open create goal wizard");
+function toDate(value: Date | string) {
+  return value instanceof Date ? value : new Date(value);
+}
+
+function computeResetsAt(goal: ApiGoal, weekStart: Date | string) {
+  if (goal.cadence === "weekly") {
+    const date = toDate(weekStart);
+    date.setUTCDate(date.getUTCDate() + 7);
+    return date.toISOString();
+  }
+  const now = new Date();
+  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return nextMonth.toISOString();
+}
+
+function mapGoals(data: GoalsListResult | undefined): Goal[] {
+  if (!data) {
+    return [];
+  }
+  return data.goals.map((goal) => {
+    const currentStreak = goal.streak?.currentWeeks ?? 0;
+    return {
+      id: goal.id,
+      goalType: goal.goalType,
+      cadence: goal.cadence,
+      targetValue: goal.targetValue,
+      currentValue: goal.currentValue,
+      trackStreak: goal.streak !== null,
+      currentStreak,
+      bestStreak: currentStreak,
+      status: getGoalStatus(goal),
+      resetsAt: computeResetsAt(goal, data.weekStart),
+    };
+  });
+}
+
+function validateTargetValue(goalType: GoalType, targetValueRaw: string): number {
+  const targetValue = Number(targetValueRaw);
+  if (!Number.isFinite(targetValue) || targetValue <= 0) {
+    throw new Error("Target must be a positive number.");
+  }
+  if (goalType === "frequency" && !Number.isInteger(targetValue)) {
+    throw new Error("Frequency target must be a whole number.");
+  }
+  return targetValue;
+}
+
+export function GoalsPage() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [targetValueRaw, setTargetValueRaw] = useState("");
+  const { data, isLoading, error } = useQuery(trpc.goals.list.queryOptions());
+  const goals = useMemo(() => mapGoals(data), [data]);
+
+  const updateGoalMutation = useMutation({
+    mutationFn: (input: { id: number; targetValue: number }) =>
+      trpcClient.goals.update.mutate(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(trpc.goals.list.queryOptions());
+      toast.success("Goal updated.");
+      setDialogOpen(false);
+      setEditingGoal(null);
+      setTargetValueRaw("");
+    },
+    onError: (mutationError) => {
+      toast.error(getErrorMessage(mutationError, "Failed to update goal."));
+    },
+  });
+
+  const archiveGoalMutation = useMutation({
+    mutationFn: (input: { id: number }) => trpcClient.goals.archive.mutate(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(trpc.goals.list.queryOptions());
+      toast.success("Goal archived.");
+    },
+    onError: (mutationError) => {
+      toast.error(getErrorMessage(mutationError, "Failed to archive goal."));
+    },
+  });
+
+  const handleEditGoal = (goal: Goal) => {
+    setEditingGoal(goal);
+    setTargetValueRaw(String(goal.targetValue));
+    setDialogOpen(true);
+  };
+
+  const handleSubmitEdit = () => {
+    if (!editingGoal) {
+      return;
+    }
+    try {
+      const targetValue = validateTargetValue(editingGoal.goalType, targetValueRaw);
+      updateGoalMutation.mutate({
+        id: editingGoal.id,
+        targetValue,
+      });
+    } catch (submitError) {
+      toast.error(getErrorMessage(submitError, "Invalid goal target."));
+    }
   };
 
   const activeGoals = goals.filter((g) => g.status !== "completed");
@@ -171,8 +221,16 @@ export function GoalsPage() {
           <CreateGoalWizard />
         </div>
 
-        {goals.length === 0 ? (
-          <EmptyState onCreateGoal={handleCreateGoal} />
+        {isLoading ? (
+          <div className="text-muted-foreground py-12 text-center text-sm">
+            Loading goals...
+          </div>
+        ) : error ? (
+          <div className="text-muted-foreground py-12 text-center text-sm">
+            {getErrorMessage(error, "Failed to load goals.")}
+          </div>
+        ) : goals.length === 0 ? (
+          <EmptyState />
         ) : (
           <div className="space-y-8">
             {/* Stats */}
@@ -208,7 +266,13 @@ export function GoalsPage() {
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
                     {activeGoals.map((goal) => (
-                      <GoalCard key={goal.id} goal={goal} />
+                      <GoalCard
+                        key={goal.id}
+                        goal={goal}
+                        onEdit={() => handleEditGoal(goal)}
+                        onArchive={() => archiveGoalMutation.mutate({ id: goal.id })}
+                        isArchiving={archiveGoalMutation.isPending}
+                      />
                     ))}
                   </div>
                 )}
@@ -222,7 +286,13 @@ export function GoalsPage() {
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
                     {completedGoals.map((goal) => (
-                      <GoalCard key={goal.id} goal={goal} />
+                      <GoalCard
+                        key={goal.id}
+                        goal={goal}
+                        onEdit={() => handleEditGoal(goal)}
+                        onArchive={() => archiveGoalMutation.mutate({ id: goal.id })}
+                        isArchiving={archiveGoalMutation.isPending}
+                      />
                     ))}
                   </div>
                 )}
@@ -231,7 +301,13 @@ export function GoalsPage() {
               <TabsContent value="all" className="mt-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   {goals.map((goal) => (
-                    <GoalCard key={goal.id} goal={goal} />
+                    <GoalCard
+                      key={goal.id}
+                      goal={goal}
+                      onEdit={() => handleEditGoal(goal)}
+                      onArchive={() => archiveGoalMutation.mutate({ id: goal.id })}
+                      isArchiving={archiveGoalMutation.isPending}
+                    />
                   ))}
                 </div>
               </TabsContent>
@@ -239,6 +315,39 @@ export function GoalsPage() {
           </div>
         )}
       </div>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit goal</DialogTitle>
+            <DialogDescription>Update your target value.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label htmlFor="goal-target">Target value</Label>
+            <Input
+              id="goal-target"
+              inputMode="decimal"
+              value={targetValueRaw}
+              onChange={(event) => setTargetValueRaw(event.target.value)}
+              placeholder="e.g. 30, 4, 5.3"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={updateGoalMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitEdit}
+              disabled={updateGoalMutation.isPending || targetValueRaw.length === 0}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

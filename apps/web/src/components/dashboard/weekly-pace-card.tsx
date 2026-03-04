@@ -18,6 +18,10 @@ interface WeeklyPaceCardProps {
     weekStart: string;
     paceSecPerKm: number;
   }[];
+  weeklyWindowComparison?: {
+    thisWindowPaceSecPerKm: number;
+    lastWindowPaceSecPerKm: number;
+  } | null;
 }
 
 const CustomTooltip = ({
@@ -43,7 +47,10 @@ const CustomTooltip = ({
   );
 };
 
-export function WeeklyPaceCard({ weeklyPace }: WeeklyPaceCardProps) {
+export function WeeklyPaceCard({
+  weeklyPace,
+  weeklyWindowComparison,
+}: WeeklyPaceCardProps) {
   const chartData = useMemo(() => {
     const data = weeklyPace.map((w) => ({
       week: format(parseISO(w.weekStart), "d MMM"),
@@ -69,8 +76,16 @@ export function WeeklyPaceCard({ weeklyPace }: WeeklyPaceCardProps) {
   const thisWeek = weeklyPace[weeklyPace.length - 1];
   const lastWeek = weeklyPace[weeklyPace.length - 2];
 
-  const thisWeekPace = thisWeek ? thisWeek.paceSecPerKm : 0;
-  const lastWeekPace = lastWeek ? lastWeek.paceSecPerKm : 0;
+  const thisWeekPace = weeklyWindowComparison
+    ? weeklyWindowComparison.thisWindowPaceSecPerKm
+    : thisWeek
+      ? thisWeek.paceSecPerKm
+      : 0;
+  const lastWeekPace = weeklyWindowComparison
+    ? weeklyWindowComparison.lastWindowPaceSecPerKm
+    : lastWeek
+      ? lastWeek.paceSecPerKm
+      : 0;
   const weekDelta = thisWeekPace - lastWeekPace;
   const weekDeltaPositive = weekDelta >= 0;
 
@@ -109,7 +124,7 @@ export function WeeklyPaceCard({ weeklyPace }: WeeklyPaceCardProps) {
             </span>
           </div>
 
-          {/* vs last week */}
+          {/* vs same time last week */}
           <div className="mt-4 flex gap-4">
             <div>
               <p className="text-[10px] tracking-wider text-zinc-500 uppercase">

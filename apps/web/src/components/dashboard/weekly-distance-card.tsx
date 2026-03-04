@@ -18,6 +18,10 @@ interface WeeklyMileageCardProps {
     weekStart: string;
     distanceMeters: number;
   }[];
+  weeklyWindowComparison?: {
+    thisWindowDistanceM: number;
+    lastWindowDistanceM: number;
+  } | null;
 }
 
 const CustomTooltip = ({
@@ -43,7 +47,10 @@ const CustomTooltip = ({
   );
 };
 
-export function WeeklyDistanceCard({ weeklyMileage }: WeeklyMileageCardProps) {
+export function WeeklyDistanceCard({
+  weeklyMileage,
+  weeklyWindowComparison,
+}: WeeklyMileageCardProps) {
   const chartData = useMemo(() => {
     const data = weeklyMileage.map((w) => ({
       week: format(parseISO(w.weekStart), "d MMM"),
@@ -69,8 +76,16 @@ export function WeeklyDistanceCard({ weeklyMileage }: WeeklyMileageCardProps) {
   const thisWeek = weeklyMileage[weeklyMileage.length - 1];
   const lastWeek = weeklyMileage[weeklyMileage.length - 2];
 
-  const thisWeekKm = thisWeek ? thisWeek.distanceMeters / 1000 : 0;
-  const lastWeekKm = lastWeek ? lastWeek.distanceMeters / 1000 : 0;
+  const thisWeekKm = weeklyWindowComparison
+    ? weeklyWindowComparison.thisWindowDistanceM / 1000
+    : thisWeek
+      ? thisWeek.distanceMeters / 1000
+      : 0;
+  const lastWeekKm = weeklyWindowComparison
+    ? weeklyWindowComparison.lastWindowDistanceM / 1000
+    : lastWeek
+      ? lastWeek.distanceMeters / 1000
+      : 0;
   const weekDelta = thisWeekKm - lastWeekKm;
   const weekDeltaPositive = weekDelta >= 0;
 
@@ -107,7 +122,7 @@ export function WeeklyDistanceCard({ weeklyMileage }: WeeklyMileageCardProps) {
             <span className="mb-0.5 text-lg font-medium text-zinc-400">km</span>
           </div>
 
-          {/* vs last week */}
+          {/* vs same time last week */}
           <div className="mt-4 flex gap-4">
             <div>
               <p className="text-[10px] tracking-wider text-zinc-500 uppercase">

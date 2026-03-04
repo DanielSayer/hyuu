@@ -1,11 +1,22 @@
 import { db } from "@hyuu/db";
 
-import { startOfIsoWeekUtc, startOfMonthUtc } from "../../utils";
+import {
+  computePaceSecPerKm,
+  isRunActivityType,
+  startOfIsoWeekUtc,
+  startOfMonthUtc,
+  toLocalDateOrNull,
+  toLocalDateTimeString,
+} from "../../utils";
 import { loadGoalsWithProgress } from "../goals/progress";
 
 export async function getDashboard(userId: string) {
   const now = new Date();
   const currentWeekStart = startOfIsoWeekUtc(now);
+  const previousWeekStart = new Date(currentWeekStart);
+  previousWeekStart.setUTCDate(previousWeekStart.getUTCDate() - 7);
+  const previousWindowEnd = new Date(now);
+  previousWindowEnd.setUTCDate(previousWindowEnd.getUTCDate() - 7);
   const oldestWeekStart = new Date(currentWeekStart);
   oldestWeekStart.setUTCDate(oldestWeekStart.getUTCDate() - 7 * 12);
   const currentMonthStart = startOfMonthUtc(now);
@@ -15,8 +26,14 @@ export async function getDashboard(userId: string) {
     userId,
     now,
   });
-  const [weeklyRows, monthlyRows, prRows, latestSuccessfulSync, goalsData] =
-    await Promise.all([
+  const [
+    weeklyRows,
+    monthlyRows,
+    prRows,
+    latestSuccessfulSync,
+    goalsData,
+    weeklyWindowRows,
+  ] = await Promise.all([
       db.query.runRollupWeekly.findMany({
         where: (table, operators) =>
           operators.and(
@@ -67,6 +84,24 @@ export async function getDashboard(userId: string) {
         },
       }),
       goalsDataPromise,
+      db.query.intervalsActivity.findMany({
+        where: (table, operators) =>
+          operators.and(
+            operators.eq(table.userId, userId),
+            operators.isNotNull(table.startDateLocal),
+            operators.gte(
+              table.startDateLocal,
+              toLocalDateTimeString(previousWeekStart),
+            ),
+            operators.lt(table.startDateLocal, toLocalDateTimeString(now)),
+          ),
+        columns: {
+          type: true,
+          startDateLocal: true,
+          distance: true,
+          elapsedTime: true,
+        },
+      }),
     ]);
 
   const monthlyByStart = new Map(
@@ -96,6 +131,38 @@ export async function getDashboard(userId: string) {
     paceSecPerKm: row.avgPaceSecPerKm,
   }));
 
+  let thisWindowDistanceM = 0;
+  let thisWindowElapsedS = 0;
+  let lastWindowDistanceM = 0;
+  let lastWindowElapsedS = 0;
+
+  for (const row of weeklyWindowRows) {
+    if (!isRunActivityType(row.type) || !row.startDateLocal) {
+      continue;
+    }
+    const rowStartLocal = toLocalDateOrNull(row.startDateLocal);
+    if (!rowStartLocal) {
+      continue;
+    }
+
+    if (
+      rowStartLocal >= currentWeekStart &&
+      rowStartLocal < now
+    ) {
+      thisWindowDistanceM += row.distance ?? 0;
+      thisWindowElapsedS += row.elapsedTime ?? 0;
+      continue;
+    }
+
+    if (
+      rowStartLocal >= previousWeekStart &&
+      rowStartLocal < previousWindowEnd
+    ) {
+      lastWindowDistanceM += row.distance ?? 0;
+      lastWindowElapsedS += row.elapsedTime ?? 0;
+    }
+  }
+
   return {
     lastSyncedAt: latestSuccessfulSync?.completedAt ?? null,
     kpis: {
@@ -115,6 +182,20 @@ export async function getDashboard(userId: string) {
     trends: {
       weeklyMileage,
       averagePace: paceTrend,
+      weeklyWindowComparison: {
+        thisWindowDistanceM,
+        lastWindowDistanceM,
+        thisWindowPaceSecPerKm:
+          computePaceSecPerKm({
+            elapsedSeconds: thisWindowElapsedS,
+            distanceMeters: thisWindowDistanceM,
+          }) ?? 0,
+        lastWindowPaceSecPerKm:
+          computePaceSecPerKm({
+            elapsedSeconds: lastWindowElapsedS,
+            distanceMeters: lastWindowDistanceM,
+          }) ?? 0,
+      },
     },
     goals: goalsData.goals,
   };

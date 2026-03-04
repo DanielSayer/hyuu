@@ -110,8 +110,12 @@ function RouteComponent() {
         <div className="flex flex-col gap-2">
           <WeeklyDistanceCard
             weeklyMileage={data?.trends.weeklyMileage ?? []}
+            weeklyWindowComparison={data?.trends.weeklyWindowComparison ?? null}
           />
-          <WeeklyPaceCard weeklyPace={data?.trends.averagePace ?? []} />
+          <WeeklyPaceCard
+            weeklyPace={data?.trends.averagePace ?? []}
+            weeklyWindowComparison={data?.trends.weeklyWindowComparison ?? null}
+          />
         </div>
 
         <GoalsCard goals={data?.goals ?? []} />

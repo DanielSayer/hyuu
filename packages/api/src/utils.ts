@@ -78,6 +78,80 @@ export function startOfIsoWeekUtc(date: Date): Date {
   return startOfWeekUtc(date, 1);
 }
 
+export function toLocalDateTimeString(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
+    date.getUTCDate(),
+  )}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(
+    date.getUTCSeconds(),
+  )}`;
+}
+
+export function toLocalDateOrNull(
+  value: string | null | undefined,
+): Date | null {
+  if (typeof value !== "string" || value.length === 0) {
+    return null;
+  }
+
+  const zonedDate = new Date(value);
+  if (!Number.isNaN(zonedDate.getTime()) && /[zZ]|[+-]\d{2}:\d{2}$/.test(value)) {
+    return zonedDate;
+  }
+
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/,
+  );
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day, hour, minute, second, millis] = match;
+  const parsed = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+      Number(millis ?? "0"),
+    ),
+  );
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+const RUN_ACTIVITY_TYPES = new Set([
+  "run",
+  "trailrun",
+  "treadmillrun",
+  "virtualrun",
+]);
+
+function normalizeActivityType(type: string): string {
+  return type.replaceAll(/[\s_-]/g, "").toLowerCase();
+}
+
+export function isRunActivityType(type: string | null | undefined): boolean {
+  if (typeof type !== "string" || type.length === 0) {
+    return false;
+  }
+  return RUN_ACTIVITY_TYPES.has(normalizeActivityType(type));
+}
+
+export function computePaceSecPerKm({
+  elapsedSeconds,
+  distanceMeters,
+}: {
+  elapsedSeconds: number;
+  distanceMeters: number;
+}): number | null {
+  if (elapsedSeconds <= 0 || distanceMeters <= 0) {
+    return null;
+  }
+  return elapsedSeconds / (distanceMeters / 1000);
+}
+
 export function getIsoWeekNumber(date: Date): number {
   const target = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),

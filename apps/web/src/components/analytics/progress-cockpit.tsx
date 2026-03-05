@@ -1,24 +1,27 @@
 import { Card } from "@/components/ui/card";
+import { DISTANCE_CONFIG, PR_KEY_TO_DISTANCE_MAP } from "@/lib/best-efforts";
 import { cn } from "@/lib/utils";
+import { formatPace } from "@hyuu/api/utils";
 import { formatDistanceToKm } from "@hyuu/utils/distance";
-import { formatSecondsToMinsPerKm } from "@hyuu/utils/pace";
 import { formatSecondsToHms } from "@hyuu/utils/time";
 import { format } from "date-fns";
-import { MapPinIcon, TrophyIcon } from "lucide-react";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+  Calendar,
+  Footprints,
+  MapPin,
+  MapPinIcon,
+  TrendingUp,
+  TrophyIcon,
+} from "lucide-react";
 import { Medal } from "../medal";
-import { DISTANCE_CONFIG, PR_KEY_TO_DISTANCE_MAP } from "@/lib/best-efforts";
-import { formatPace } from "@hyuu/api/utils";
+import { CumulativeDistanceChart } from "./cumulative-distance-chart";
+import { MonthlyDistanceChart } from "./monthly-distance-chart";
+import { MonthlyPaceChart } from "./monthly-pace-chart";
+
+type PersonalRecord = {
+  valueSeconds: number | null;
+  activityStartDate: string | Date | null;
+};
 
 type AnalyticsData = {
   kpis: {
@@ -38,26 +41,11 @@ type AnalyticsData = {
     runCount: number;
   }[];
   personalRecords: {
-    fastest1km: {
-      valueSeconds: number | null;
-      activityStartDate: string | Date | null;
-    } | null;
-    fastest5k: {
-      valueSeconds: number | null;
-      activityStartDate: string | Date | null;
-    } | null;
-    fastest10k: {
-      valueSeconds: number | null;
-      activityStartDate: string | Date | null;
-    } | null;
-    fastestHalf: {
-      valueSeconds: number | null;
-      activityStartDate: string | Date | null;
-    } | null;
-    fastestFull: {
-      valueSeconds: number | null;
-      activityStartDate: string | Date | null;
-    } | null;
+    fastest1km: PersonalRecord | null;
+    fastest5k: PersonalRecord | null;
+    fastest10k: PersonalRecord | null;
+    fastestHalf: PersonalRecord | null;
+    fastestFull: PersonalRecord | null;
     longestRunEver: {
       valueDistanceM: number | null;
       activityStartDate: string | Date | null;
@@ -98,8 +86,6 @@ const PR_SECTIONS = [
   { label: "Full", key: "fastestFull" },
 ] as const;
 
-const CHART_COLOR = "var(--chart-1)";
-
 function ProgressCockpit({ data }: ProgressCockpitProps) {
   const monthlyChartData = data.monthly.map((row) => ({
     month: format(new Date(row.monthStart), "MMM"),
@@ -128,48 +114,88 @@ function ProgressCockpit({ data }: ProgressCockpitProps) {
     <div className="space-y-4">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-primary/30 bg-primary/5 p-4">
-          <p className="text-muted-foreground text-xs tracking-widest uppercase">
-            This Year
-          </p>
-          <p className="mt-1 text-3xl font-bold">
+        <Card className="group relative overflow-hidden border-emerald-500/20 bg-emerald-500/5 p-5 transition-colors hover:border-emerald-500/40">
+          <div className="absolute -top-3 -right-3 rounded-full bg-emerald-500/10 p-5 transition-transform group-hover:scale-110">
+            <MapPin className="h-5 w-5 text-emerald-400/50" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_var(--color-emerald-400)]" />
+            <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
+              This Year
+            </p>
+          </div>
+          <p className="mt-3 text-4xl font-bold tracking-tight">
             {toDistance(data.kpis.distanceThisYear)}
           </p>
-          <p className="text-muted-foreground mt-1 text-xs">
-            {toDuration(data.kpis.timeRunThisYear)} total
-          </p>
+          <div className="text-muted-foreground mt-2 flex items-center gap-1.5 text-xs">
+            <span className="inline-block rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-400">
+              {toDuration(data.kpis.timeRunThisYear)}
+            </span>
+            <span>total time</span>
+          </div>
         </Card>
 
-        <Card className="p-4">
-          <p className="text-muted-foreground text-xs tracking-widest uppercase">
-            This Month
-          </p>
-          <p className="mt-1 text-3xl font-bold">
+        <Card className="group relative overflow-hidden border-sky-500/20 bg-sky-500/5 p-5 transition-colors hover:border-sky-500/40">
+          <div className="absolute -top-3 -right-3 rounded-full bg-sky-500/10 p-5 transition-transform group-hover:scale-110">
+            <Calendar className="h-5 w-5 text-sky-400/50" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-sky-400 shadow-[0_0_6px_var(--color-sky-400)]" />
+            <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
+              This Month
+            </p>
+          </div>
+          <p className="mt-3 text-4xl font-bold tracking-tight">
             {toDistance(data.kpis.distanceThisMonth)}
           </p>
-          <p className="text-muted-foreground mt-1 text-xs">
-            {toDuration(data.kpis.timeRunThisMonth)} total
-          </p>
+          <div className="text-muted-foreground mt-2 flex items-center gap-1.5 text-xs">
+            <span className="inline-block rounded bg-sky-500/10 px-1.5 py-0.5 text-sky-400">
+              {toDuration(data.kpis.timeRunThisMonth)}
+            </span>
+            <span>total time</span>
+          </div>
         </Card>
 
-        <Card className="p-4">
-          <p className="text-muted-foreground text-xs tracking-widest uppercase">
-            Runs This Year
+        <Card className="group relative overflow-hidden border-violet-500/20 bg-violet-500/5 p-5 transition-colors hover:border-violet-500/40">
+          <div className="absolute -top-3 -right-3 rounded-full bg-violet-500/10 p-5 transition-transform group-hover:scale-110">
+            <Footprints className="h-5 w-5 text-violet-400/50" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-violet-400 shadow-[0_0_6px_var(--color-violet-400)]" />
+            <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
+              Runs This Year
+            </p>
+          </div>
+          <p className="mt-3 text-4xl font-bold tracking-tight">
+            {data.kpis.runsThisYear}
           </p>
-          <p className="mt-1 text-3xl font-bold">{data.kpis.runsThisYear}</p>
-          <p className="text-muted-foreground mt-1 text-xs">
-            {data.kpis.runsThisMonth} this month
-          </p>
+          <div className="text-muted-foreground mt-2 flex items-center gap-1.5 text-xs">
+            <span className="inline-block rounded bg-violet-500/10 px-1.5 py-0.5 text-violet-400">
+              {data.kpis.runsThisMonth}
+            </span>
+            <span>this month</span>
+          </div>
         </Card>
 
-        <Card className="p-4">
-          <p className="text-muted-foreground text-xs tracking-widest uppercase">
-            Avg Monthly Distance
-          </p>
-          <p className="mt-1 text-3xl font-bold">
+        <Card className="group relative overflow-hidden border-amber-500/20 bg-amber-500/5 p-5 transition-colors hover:border-amber-500/40">
+          <div className="absolute -top-3 -right-3 rounded-full bg-amber-500/10 p-5 transition-transform group-hover:scale-110">
+            <TrendingUp className="h-5 w-5 text-amber-400/50" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_6px_var(--color-amber-400)]" />
+            <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
+              Avg Monthly Distance
+            </p>
+          </div>
+          <p className="mt-3 text-4xl font-bold tracking-tight">
             {toDistance(data.kpis.avgMonthlyDistance)}
           </p>
-          <p className="text-muted-foreground mt-1 text-xs">12 month average</p>
+          <div className="text-muted-foreground mt-2 flex items-center gap-1.5 text-xs">
+            <span className="inline-block rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-400">
+              12 month
+            </span>
+            <span>average</span>
+          </div>
         </Card>
       </div>
 
@@ -269,94 +295,12 @@ function ProgressCockpit({ data }: ProgressCockpitProps) {
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card className="p-4">
-          <p className="mb-2 text-base font-semibold">Monthly Distance</p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyChartData}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} unit=" km" />
-                <Tooltip
-                  formatter={(value: number) => [`${value} km`, "Distance"]}
-                />
-                <Bar
-                  dataKey="distanceKm"
-                  fill={CHART_COLOR}
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <p className="mb-2 text-base font-semibold">Monthly Pace Trend</p>
-          {paceChartData.length > 0 ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={paceChartData}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    unit=" /km"
-                    tickFormatter={(value) =>
-                      formatSecondsToMinsPerKm(Number(value), {
-                        showUnit: false,
-                      })
-                    }
-                  />
-                  <Tooltip
-                    formatter={(value: number) => [
-                      formatSecondsToMinsPerKm(Number(value)),
-                      "Pace",
-                    ]}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="paceSecPerKm"
-                    stroke={CHART_COLOR}
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="text-muted-foreground flex h-64 items-center justify-center text-sm">
-              No pace data yet
-            </div>
-          )}
-        </Card>
+        <MonthlyDistanceChart monthlyChartData={monthlyChartData} />
+        <MonthlyPaceChart paceChartData={paceChartData} />
       </div>
 
       {cumulativeChartData.length > 1 && (
-        <Card className="p-4">
-          <p className="mb-2 text-base font-semibold">
-            Cumulative Distance (Year)
-          </p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cumulativeChartData}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} unit=" km" />
-                <Tooltip
-                  formatter={(value: number) => [`${value} km`, "Total"]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="cumulativeKm"
-                  stroke={CHART_COLOR}
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+        <CumulativeDistanceChart cumulativeChartData={cumulativeChartData} />
       )}
     </div>
   );

@@ -3,4 +3,5 @@ export * from "./goals";
 export * from "./intervals";
 export * from "./personal-records";
 export * from "./summaries";
+export * from "./weekly-review";
 export {};

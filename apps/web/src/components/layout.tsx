@@ -7,6 +7,8 @@ import {
   UserIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle } from "./ui/card";
 import {
   Sidebar,
@@ -27,12 +29,51 @@ import { authClient } from "@/lib/auth-client";
 import { LoadingWrapper } from "./loading-wrapper";
 import { Skeleton } from "./ui/skeleton";
 import { Link, useLocation } from "@tanstack/react-router";
+import { trpc } from "@/utils/trpc";
+import { WeeklyWrapped } from "./weekly-wrapped/weekly-wrapped";
 
 type AppLayoutProps = {
   children: ReactNode;
 };
 
 function AppLayout({ children }: AppLayoutProps) {
+  const { isPending, data: session } = authClient.useSession();
+  const didRequestWeeklyReviewRef = useRef(false);
+  const [weeklyWrappedOpen, setWeeklyWrappedOpen] = useState(false);
+  const [weeklyWrappedData, setWeeklyWrappedData] = useState<
+    (typeof weeklyReviewOnOpenMutation)["data"] | null
+  >(null);
+
+  const weeklyReviewOnOpenMutation = useMutation(
+    trpc.weeklyReviewOnOpen.mutationOptions(),
+  );
+
+  useEffect(() => {
+    if (isPending) {
+      return;
+    }
+    const userId = session?.user?.id;
+    if (!userId) {
+      didRequestWeeklyReviewRef.current = false;
+      return;
+    }
+    if (didRequestWeeklyReviewRef.current) {
+      return;
+    }
+    didRequestWeeklyReviewRef.current = true;
+    weeklyReviewOnOpenMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        if (data.shouldShow && data.totals) {
+          setWeeklyWrappedData(data);
+          setWeeklyWrappedOpen(true);
+        }
+      },
+      onError: () => {
+        didRequestWeeklyReviewRef.current = false;
+      },
+    });
+  }, [isPending, session?.user?.id, weeklyReviewOnOpenMutation]);
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -42,6 +83,13 @@ function AppLayout({ children }: AppLayoutProps) {
         </header>
         <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
       </SidebarInset>
+      {weeklyWrappedData && (
+        <WeeklyWrapped
+          open={weeklyWrappedOpen}
+          onOpenChange={setWeeklyWrappedOpen}
+          data={weeklyWrappedData}
+        />
+      )}
     </SidebarProvider>
   );
 }

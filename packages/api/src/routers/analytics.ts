@@ -2,10 +2,14 @@ import { z } from "zod";
 
 import { protectedProcedure } from "../index";
 import { getAnalytics, getDashboard } from "../services/analytics";
+import { getWeeklyReviewOnOpen } from "../services/analytics/weekly-review";
 
 export const analyticsProcedures = {
   dashboard: protectedProcedure.query(async ({ ctx }) => {
     return getDashboard(ctx.session.user.id);
+  }),
+  weeklyReviewOnOpen: protectedProcedure.mutation(async ({ ctx }) => {
+    return getWeeklyReviewOnOpen(ctx.session.user.id);
   }),
   analytics: protectedProcedure
     .input(

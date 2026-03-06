@@ -16,6 +16,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as SettingsRouteRouteImport } from './routes/settings/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsTrainingPlanRouteImport } from './routes/settings/training-plan'
 import { Route as SettingsConnectionsRouteImport } from './routes/settings/connections'
 import { Route as ActivityActivityIdRouteImport } from './routes/activity.$activityId'
 
@@ -54,6 +55,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsTrainingPlanRoute = SettingsTrainingPlanRouteImport.update({
+  id: '/training-plan',
+  path: '/training-plan',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
 const SettingsConnectionsRoute = SettingsConnectionsRouteImport.update({
   id: '/connections',
   path: '/connections',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/training-plan': typeof TrainingPlanRoute
   '/activity/$activityId': typeof ActivityActivityIdRoute
   '/settings/connections': typeof SettingsConnectionsRoute
+  '/settings/training-plan': typeof SettingsTrainingPlanRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/training-plan': typeof TrainingPlanRoute
   '/activity/$activityId': typeof ActivityActivityIdRoute
   '/settings/connections': typeof SettingsConnectionsRoute
+  '/settings/training-plan': typeof SettingsTrainingPlanRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   '/training-plan': typeof TrainingPlanRoute
   '/activity/$activityId': typeof ActivityActivityIdRoute
   '/settings/connections': typeof SettingsConnectionsRoute
+  '/settings/training-plan': typeof SettingsTrainingPlanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/training-plan'
     | '/activity/$activityId'
     | '/settings/connections'
+    | '/settings/training-plan'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/training-plan'
     | '/activity/$activityId'
     | '/settings/connections'
+    | '/settings/training-plan'
   id:
     | '__root__'
     | '/'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/training-plan'
     | '/activity/$activityId'
     | '/settings/connections'
+    | '/settings/training-plan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/training-plan': {
+      id: '/settings/training-plan'
+      path: '/training-plan'
+      fullPath: '/settings/training-plan'
+      preLoaderRoute: typeof SettingsTrainingPlanRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
     '/settings/connections': {
       id: '/settings/connections'
       path: '/connections'
@@ -216,10 +235,12 @@ declare module '@tanstack/react-router' {
 
 interface SettingsRouteRouteChildren {
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
+  SettingsTrainingPlanRoute: typeof SettingsTrainingPlanRoute
 }
 
 const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
   SettingsConnectionsRoute: SettingsConnectionsRoute,
+  SettingsTrainingPlanRoute: SettingsTrainingPlanRoute,
 }
 
 const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(

@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
+  ClipboardListIcon,
   LinkIcon,
   UserIcon,
 } from "lucide-react";
@@ -23,6 +24,11 @@ const settingsNavItems = [
     title: "Connections",
     href: "/settings/connections",
     icon: LinkIcon,
+  },
+  {
+    title: "Training Plan",
+    href: "/settings/training-plan",
+    icon: ClipboardListIcon,
   },
 ];
 

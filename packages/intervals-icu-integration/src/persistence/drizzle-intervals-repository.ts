@@ -1,5 +1,4 @@
-import { db, runPr, runRollupMonthly, runRollupWeekly } from "@hyuu/db";
-import { userSettings } from "@hyuu/db/schema/auth";
+import { db } from "@hyuu/db";
 import {
   intervalsActivity,
   intervalsActivityBestEffort,
@@ -8,15 +7,8 @@ import {
   intervalsAthleteProfile,
   intervalsSyncLog,
 } from "@hyuu/db/schema/intervals";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
-import {
-  computePaceSecPerKm,
-  isRunActivityType,
-  startOfIsoWeekUtc,
-  startOfMonthUtc,
-  toLocalDateOrNull,
-  toLocalDateTimeString,
-} from "../utils";
+import { eq } from "drizzle-orm";
+import { toLocalDateOrNull } from "../utils";
 import type { IntervalsRepository } from "./intervals-repository";
 import {
   mapActivityToActivityValues,
@@ -29,14 +21,12 @@ import {
   recomputeWeeklyGoalProgressForDates,
   recomputeWeeklyGoalProgressForUser,
 } from "./recompute-weekly-goal-progress";
-
-const DASHBOARD_PR_TARGETS = [
-  { prType: "fastest_1km", targetDistanceMeters: 1000 },
-  { prType: "fastest_5k", targetDistanceMeters: 5000 },
-  { prType: "fastest_10k", targetDistanceMeters: 10000 },
-  { prType: "fastest_half", targetDistanceMeters: 21097.5 },
-  { prType: "fastest_full", targetDistanceMeters: 42195 },
-] as const;
+import { recomputeRunPrsForUser } from "./recompute-run-prs-service";
+import {
+  recomputeAllRunRollupsForUser,
+  recomputeRunRollupsForAffectedDates,
+} from "./recompute-run-rollups-service";
+import { getOrCreateUserWeekStartDay } from "./week-start-day-service";
 
 export function createDrizzleIntervalsRepository(): IntervalsRepository {
   return {
@@ -292,39 +282,9 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
       });
     },
     async recomputeDashboardRunRollups({ userId, affectedDates }) {
-      if (affectedDates.length === 0) {
-        return;
-      }
-
-      const weekStarts = new Set(
-        affectedDates.map((date) => toLocalDateTimeString(startOfIsoWeekUtc(date))),
-      );
-      const monthStarts = new Set(
-        affectedDates.map((date) => toLocalDateTimeString(startOfMonthUtc(date))),
-      );
-
-      for (const weekStartIso of weekStarts) {
-        const weekStart = toLocalDateOrNull(weekStartIso);
-        if (!weekStart) {
-          continue;
-        }
-        const weekEnd = new Date(weekStart);
-        weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
-        await recomputeWeeklyBucket({ userId, weekStart, weekEnd });
-      }
-
-      for (const monthStartIso of monthStarts) {
-        const monthStart = toLocalDateOrNull(monthStartIso);
-        if (!monthStart) {
-          continue;
-        }
-        const monthEnd = new Date(monthStart);
-        monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
-        await recomputeMonthlyBucket({ userId, monthStart, monthEnd });
-      }
-
-      await recomputeRunPrs(userId);
-      const weekStartDay = await getUserWeekStartDay(userId);
+      await recomputeRunRollupsForAffectedDates({ userId, affectedDates });
+      await recomputeRunPrsForUser(userId);
+      const weekStartDay = await getOrCreateUserWeekStartDay(userId);
       await recomputeWeeklyGoalProgressForDates({
         userId,
         affectedDates,
@@ -332,9 +292,9 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
       });
     },
     async recomputeDashboardRunRollupsForUser(userId) {
-      await recomputeAllRunRollups(userId);
-      await recomputeRunPrs(userId);
-      const weekStartDay = await getUserWeekStartDay(userId);
+      await recomputeAllRunRollupsForUser(userId);
+      await recomputeRunPrsForUser(userId);
+      const weekStartDay = await getOrCreateUserWeekStartDay(userId);
       await recomputeWeeklyGoalProgressForUser({
         userId,
         weekStartDay,
@@ -349,406 +309,4 @@ export function createDrizzleIntervalsRepository(): IntervalsRepository {
       return [...new Set(rows.map((row) => row.userId))];
     },
   };
-}
-
-async function getUserWeekStartDay(userId: string): Promise<0 | 1> {
-  const settings = await db.query.userSettings.findFirst({
-    where: (table, operators) => operators.eq(table.userId, userId),
-    columns: {
-      weekStartDay: true,
-    },
-  });
-  if (settings) {
-    return settings.weekStartDay === 0 ? 0 : 1;
-  }
-
-  await db
-    .insert(userSettings)
-    .values({
-      userId,
-      weekStartDay: 1,
-    })
-    .onConflictDoNothing();
-  return 1;
-}
-
-type ActivityForRollup = {
-  type: string | null;
-  distance: number | null;
-  elapsedTime: number | null;
-  movingTime: number | null;
-};
-
-function buildRollupStats(rows: ActivityForRollup[]) {
-  let runCount = 0;
-  let totalDistanceM = 0;
-  let totalElapsedS = 0;
-  let totalMovingS = 0;
-
-  for (const row of rows) {
-    if (!isRunActivityType(row.type)) {
-      continue;
-    }
-    runCount += 1;
-    totalDistanceM += row.distance ?? 0;
-    totalElapsedS += row.elapsedTime ?? 0;
-    totalMovingS += row.movingTime ?? 0;
-  }
-
-  if (runCount === 0) {
-    return null;
-  }
-
-  return {
-    runCount,
-    totalDistanceM,
-    totalElapsedS,
-    totalMovingS,
-    avgPaceSecPerKm:
-      computePaceSecPerKm({
-        elapsedSeconds: totalElapsedS,
-        distanceMeters: totalDistanceM,
-      }) ?? 0,
-  };
-}
-
-async function recomputeWeeklyBucket({
-  userId,
-  weekStart,
-  weekEnd,
-}: {
-  userId: string;
-  weekStart: Date;
-  weekEnd: Date;
-}) {
-  const rows = await db.query.intervalsActivity.findMany({
-    where: (table, operators) =>
-      operators.and(
-        operators.eq(table.userId, userId),
-        operators.isNotNull(table.startDateLocal),
-        operators.gte(table.startDateLocal, toLocalDateTimeString(weekStart)),
-        operators.lt(table.startDateLocal, toLocalDateTimeString(weekEnd)),
-      ),
-    columns: {
-      type: true,
-      distance: true,
-      elapsedTime: true,
-      movingTime: true,
-    },
-  });
-
-  const stats = buildRollupStats(rows);
-
-  await db
-    .delete(runRollupWeekly)
-    .where(
-      and(
-        eq(runRollupWeekly.userId, userId),
-        eq(runRollupWeekly.weekStartLocal, weekStart),
-      ),
-    );
-
-  if (!stats) {
-    return;
-  }
-
-  await db.insert(runRollupWeekly).values({
-    userId,
-    weekStartLocal: weekStart,
-    runCount: stats.runCount,
-    totalDistanceM: stats.totalDistanceM,
-    totalElapsedS: stats.totalElapsedS,
-    totalMovingS: stats.totalMovingS,
-    avgPaceSecPerKm: stats.avgPaceSecPerKm,
-  });
-}
-
-async function recomputeMonthlyBucket({
-  userId,
-  monthStart,
-  monthEnd,
-}: {
-  userId: string;
-  monthStart: Date;
-  monthEnd: Date;
-}) {
-  const rows = await db.query.intervalsActivity.findMany({
-    where: (table, operators) =>
-      operators.and(
-        operators.eq(table.userId, userId),
-        operators.isNotNull(table.startDateLocal),
-        operators.gte(table.startDateLocal, toLocalDateTimeString(monthStart)),
-        operators.lt(table.startDateLocal, toLocalDateTimeString(monthEnd)),
-      ),
-    columns: {
-      type: true,
-      distance: true,
-      elapsedTime: true,
-      movingTime: true,
-    },
-  });
-
-  const stats = buildRollupStats(rows);
-
-  await db
-    .delete(runRollupMonthly)
-    .where(
-      and(
-        eq(runRollupMonthly.userId, userId),
-        eq(runRollupMonthly.monthStartLocal, monthStart),
-      ),
-    );
-
-  if (!stats) {
-    return;
-  }
-
-  await db.insert(runRollupMonthly).values({
-    userId,
-    monthStartLocal: monthStart,
-    runCount: stats.runCount,
-    totalDistanceM: stats.totalDistanceM,
-    totalElapsedS: stats.totalElapsedS,
-    totalMovingS: stats.totalMovingS,
-    avgPaceSecPerKm: stats.avgPaceSecPerKm,
-  });
-}
-
-async function recomputeAllRunRollups(userId: string) {
-  const rows = await db.query.intervalsActivity.findMany({
-    where: (table, operators) =>
-      operators.and(
-        operators.eq(table.userId, userId),
-        operators.isNotNull(table.startDateLocal),
-      ),
-    columns: {
-      type: true,
-      distance: true,
-      elapsedTime: true,
-      movingTime: true,
-      startDateLocal: true,
-    },
-  });
-
-  const weeklyRows = new Map<string, ActivityForRollup[]>();
-  const monthlyRows = new Map<string, ActivityForRollup[]>();
-
-  for (const row of rows) {
-    if (!row.startDateLocal) {
-      continue;
-    }
-    const localStartDate = toLocalDateOrNull(row.startDateLocal);
-    if (!localStartDate) {
-      continue;
-    }
-    const weekStart = startOfIsoWeekUtc(localStartDate);
-    const monthStart = startOfMonthUtc(localStartDate);
-    const weekKey = weekStart.toISOString();
-    const monthKey = monthStart.toISOString();
-
-    const rollupRow = {
-      type: row.type,
-      distance: row.distance,
-      elapsedTime: row.elapsedTime,
-      movingTime: row.movingTime,
-    } satisfies ActivityForRollup;
-
-    const weekBucket = weeklyRows.get(weekKey);
-    if (weekBucket) {
-      weekBucket.push(rollupRow);
-    } else {
-      weeklyRows.set(weekKey, [rollupRow]);
-    }
-
-    const monthBucket = monthlyRows.get(monthKey);
-    if (monthBucket) {
-      monthBucket.push(rollupRow);
-    } else {
-      monthlyRows.set(monthKey, [rollupRow]);
-    }
-  }
-
-  await db.delete(runRollupWeekly).where(eq(runRollupWeekly.userId, userId));
-  await db.delete(runRollupMonthly).where(eq(runRollupMonthly.userId, userId));
-
-  const weeklyValues = [...weeklyRows.entries()].flatMap(
-    ([weekStartIso, bucketRows]) => {
-      const stats = buildRollupStats(bucketRows);
-      if (!stats) {
-        return [];
-      }
-      return [
-        {
-          userId,
-          weekStartLocal: new Date(weekStartIso),
-          runCount: stats.runCount,
-          totalDistanceM: stats.totalDistanceM,
-          totalElapsedS: stats.totalElapsedS,
-          totalMovingS: stats.totalMovingS,
-          avgPaceSecPerKm: stats.avgPaceSecPerKm,
-        },
-      ];
-    },
-  );
-
-  if (weeklyValues.length > 0) {
-    await db.insert(runRollupWeekly).values(weeklyValues);
-  }
-
-  const monthlyValues = [...monthlyRows.entries()].flatMap(
-    ([monthStartIso, bucketRows]) => {
-      const stats = buildRollupStats(bucketRows);
-      if (!stats) {
-        return [];
-      }
-      return [
-        {
-          userId,
-          monthStartLocal: new Date(monthStartIso),
-          runCount: stats.runCount,
-          totalDistanceM: stats.totalDistanceM,
-          totalElapsedS: stats.totalElapsedS,
-          totalMovingS: stats.totalMovingS,
-          avgPaceSecPerKm: stats.avgPaceSecPerKm,
-        },
-      ];
-    },
-  );
-
-  if (monthlyValues.length > 0) {
-    await db.insert(runRollupMonthly).values(monthlyValues);
-  }
-}
-
-async function recomputeRunPrs(userId: string) {
-  const now = new Date();
-  const prRows: Array<{
-    userId: string;
-    prType: string;
-    activityId: number | null;
-    valueSeconds: number | null;
-    valueDistanceM: number | null;
-    activityStartDate: Date | null;
-    updatedAt: Date;
-  }> = [];
-
-  const longestRunCandidates = await db.query.intervalsActivity.findMany({
-    where: (table, operators) =>
-      operators.and(
-        operators.eq(table.userId, userId),
-        operators.isNotNull(table.startDate),
-      ),
-    columns: {
-      id: true,
-      type: true,
-      startDate: true,
-      distance: true,
-    },
-  });
-
-  let longestRun:
-    | {
-        activityId: number;
-        distance: number;
-        startDate: Date;
-      }
-    | undefined;
-
-  for (const candidate of longestRunCandidates) {
-    if (!isRunActivityType(candidate.type) || !candidate.startDate) {
-      continue;
-    }
-    const distance = candidate.distance ?? 0;
-    if (!longestRun || distance > longestRun.distance) {
-      longestRun = {
-        activityId: candidate.id,
-        distance,
-        startDate: candidate.startDate,
-      };
-    }
-  }
-
-  if (longestRun) {
-    prRows.push({
-      userId,
-      prType: "longest_run",
-      activityId: longestRun.activityId,
-      valueSeconds: null,
-      valueDistanceM: longestRun.distance,
-      activityStartDate: longestRun.startDate,
-      updatedAt: now,
-    });
-  }
-
-  const bestEffortRows = await db
-    .select({
-      activityId: intervalsActivity.id,
-      activityType: intervalsActivity.type,
-      activityStartDate: intervalsActivity.startDate,
-      targetDistanceMeters: intervalsActivityBestEffort.targetDistanceMeters,
-      durationSeconds: intervalsActivityBestEffort.durationSeconds,
-    })
-    .from(intervalsActivityBestEffort)
-    .innerJoin(
-      intervalsActivity,
-      eq(intervalsActivity.id, intervalsActivityBestEffort.activityId),
-    )
-    .where(
-      and(
-        eq(intervalsActivity.userId, userId),
-        isNotNull(intervalsActivity.startDate),
-        inArray(
-          intervalsActivityBestEffort.targetDistanceMeters,
-          DASHBOARD_PR_TARGETS.map((entry) => entry.targetDistanceMeters),
-        ),
-      ),
-    );
-
-  for (const target of DASHBOARD_PR_TARGETS) {
-    const bestForTarget = bestEffortRows
-      .filter(
-        (row) =>
-          isRunActivityType(row.activityType) &&
-          row.targetDistanceMeters === target.targetDistanceMeters,
-      )
-      .reduce<
-        | {
-            activityId: number;
-            activityStartDate: Date;
-            durationSeconds: number;
-          }
-        | undefined
-      >((best, row) => {
-        if (!row.activityStartDate) {
-          return best;
-        }
-        if (!best || row.durationSeconds < best.durationSeconds) {
-          return {
-            activityId: row.activityId,
-            activityStartDate: row.activityStartDate,
-            durationSeconds: row.durationSeconds,
-          };
-        }
-        return best;
-      }, undefined);
-
-    if (!bestForTarget) {
-      continue;
-    }
-
-    prRows.push({
-      userId,
-      prType: target.prType,
-      activityId: bestForTarget.activityId,
-      valueSeconds: bestForTarget.durationSeconds,
-      valueDistanceM: null,
-      activityStartDate: bestForTarget.activityStartDate,
-      updatedAt: now,
-    });
-  }
-
-  await db.delete(runPr).where(eq(runPr.userId, userId));
-  if (prRows.length > 0) {
-    await db.insert(runPr).values(prRows);
-  }
 }

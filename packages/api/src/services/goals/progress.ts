@@ -1,92 +1,18 @@
-import { db, userSettings } from "@hyuu/db";
+import { db } from "@hyuu/db";
 
 import { goalCadenceSchema, goalTypeSchema } from "../../schemas/goals";
-import type { GoalCadence } from "../../schemas/goals";
 import { startOfMonthUtc, startOfWeekUtc } from "../../utils";
-import { isRunActivityType } from "../../utils/activities";
 import {
   getGoalProgressRatio,
   isGoalCompleted,
   toGoalDisplayValue,
-  toWeekStartDay,
 } from "../../utils/goals";
+import { ensureUserWeekStartDay } from "../user-settings/ensure-week-start-day";
+import { computePeriodGoalMetrics } from "./goal-metrics-service";
 import {
   computeCurrentWeeklyStreakWeeks,
   loadActiveWeeklyFrequencyStreakGoalId,
 } from "./streaks";
-
-async function ensureUserWeekStartDay(userId: string): Promise<0 | 1> {
-  const settings = await db.query.userSettings.findFirst({
-    where: (table, operators) => operators.eq(table.userId, userId),
-    columns: { weekStartDay: true },
-  });
-  if (settings) {
-    return toWeekStartDay(settings.weekStartDay);
-  }
-  await db
-    .insert(userSettings)
-    .values({
-      userId,
-      weekStartDay: 1,
-    })
-    .onConflictDoNothing();
-  return 1;
-}
-
-async function computePeriodGoalMetrics({
-  userId,
-  periodStart,
-  cadence,
-}: {
-  userId: string;
-  periodStart: Date;
-  cadence: GoalCadence;
-}) {
-  const periodEnd = new Date(periodStart);
-  if (cadence === "weekly") {
-    periodEnd.setUTCDate(periodEnd.getUTCDate() + 7);
-  } else {
-    periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
-  }
-
-  const rows = await db.query.intervalsActivity.findMany({
-    where: (table, operators) =>
-      operators.and(
-        operators.eq(table.userId, userId),
-        operators.isNotNull(table.startDate),
-        operators.gte(table.startDate, periodStart),
-        operators.lt(table.startDate, periodEnd),
-      ),
-    columns: {
-      type: true,
-      distance: true,
-      elapsedTime: true,
-      startDate: true,
-    },
-  });
-
-  let distanceMeters = 0;
-  let elapsedSeconds = 0;
-  let runCount = 0;
-
-  for (const row of rows) {
-    if (!isRunActivityType(row.type)) {
-      continue;
-    }
-    runCount += 1;
-    distanceMeters += row.distance ?? 0;
-    elapsedSeconds += row.elapsedTime ?? 0;
-  }
-
-  return {
-    distance: distanceMeters,
-    frequency: runCount,
-    pace:
-      distanceMeters > 0 && elapsedSeconds > 0
-        ? elapsedSeconds / (distanceMeters / 1000)
-        : 0,
-  };
-}
 
 export async function loadGoalsWithProgress({
   userId,

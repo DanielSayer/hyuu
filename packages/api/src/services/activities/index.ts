@@ -14,6 +14,8 @@ import {
   oneKmSplitTimesSecondsSchema,
 } from "../../schemas/activities";
 import { formatPace, getIsoWeekNumber, parseNullableJsonb } from "../../utils";
+import { mapActivityListItem } from "./activity-list-mapper";
+import { assertValidDateRange } from "./date-range-guard";
 
 export async function getRecentActivities(userId: string) {
   const rows = await db.query.intervalsActivity.findMany({
@@ -38,15 +40,7 @@ export async function getRecentActivities(userId: string) {
     },
   });
 
-  return rows.map((item) => ({
-    id: item.id,
-    name: item.name ?? "Untitled activity",
-    distance: item.distance ?? 0,
-    startDate: item.startDate,
-    elapsedTime: item.elapsedTime,
-    averageHeartrate: item.averageHeartrate,
-    routePreview: parseNullableJsonb(item.mapData, activityMapDataSchema),
-  }));
+  return rows.map(mapActivityListItem);
 }
 
 export async function getActivitiesMap({
@@ -58,12 +52,7 @@ export async function getActivitiesMap({
   startDate: Date;
   endDate: Date;
 }) {
-  if (startDate.getTime() > endDate.getTime()) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "startDate must be before or equal to endDate",
-    });
-  }
+  assertValidDateRange(startDate, endDate);
 
   const rows = await db.query.intervalsActivity.findMany({
     where: (table, operators) =>
@@ -88,15 +77,7 @@ export async function getActivitiesMap({
     },
   });
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name ?? "Untitled activity",
-    startDate: row.startDate,
-    distance: row.distance ?? 0,
-    elapsedTime: row.elapsedTime,
-    averageHeartrate: row.averageHeartrate,
-    routePreview: parseNullableJsonb(row.mapData, activityMapDataSchema),
-  }));
+  return rows.map(mapActivityListItem);
 }
 
 export async function getTrainingPlan({
@@ -108,12 +89,7 @@ export async function getTrainingPlan({
   startDate: Date;
   endDate: Date;
 }) {
-  if (startDate.getTime() > endDate.getTime()) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "startDate must be before or equal to endDate",
-    });
-  }
+  assertValidDateRange(startDate, endDate);
 
   const rows = await db.query.intervalsActivity.findMany({
     where: (table, operators) =>

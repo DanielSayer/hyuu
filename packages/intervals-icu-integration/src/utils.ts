@@ -1,4 +1,15 @@
 import { z } from "zod";
+import {
+  computePaceSecPerKm,
+  isRunActivityType,
+} from "@hyuu/utils/activity";
+import {
+  startOfIsoWeekUtc,
+  startOfMonthUtc,
+  startOfWeekUtc,
+  toLocalDateOrNull,
+  toLocalDateTimeString,
+} from "@hyuu/utils/dates";
 import type {
   IntervalsActivityStream,
   IntervalsComputedBestEffort,
@@ -10,37 +21,6 @@ function toDateOrNull(value: string | null | undefined) {
     return null;
   }
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function toLocalDateOrNull(value: string | null | undefined) {
-  if (typeof value !== "string" || value.length === 0) {
-    return null;
-  }
-  const zonedDate = new Date(value);
-  if (!Number.isNaN(zonedDate.getTime()) && /[zZ]|[+-]\d{2}:\d{2}$/.test(value)) {
-    return zonedDate;
-  }
-
-  const match = value.match(
-    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/,
-  );
-  if (!match) {
-    return null;
-  }
-
-  const [, year, month, day, hour, minute, second, millis] = match;
-  const date = new Date(
-    Date.UTC(
-      Number(year),
-      Number(month) - 1,
-      Number(day),
-      Number(hour),
-      Number(minute),
-      Number(second),
-      Number(millis ?? "0"),
-    ),
-  );
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -68,70 +48,6 @@ function toNumberArrayOrNull(value: number[] | null | undefined) {
 
 function toDateOnlyString(date: Date) {
   return date.toISOString().slice(0, 10);
-}
-
-function toLocalDateTimeString(date: Date) {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
-    date.getUTCDate(),
-  )}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(
-    date.getUTCSeconds(),
-  )}`;
-}
-
-const RUN_ACTIVITY_TYPES = new Set([
-  "run",
-  "trailrun",
-  "treadmillrun",
-  "virtualrun",
-]);
-
-function normalizeActivityType(type: string) {
-  return type.replaceAll(/[\s_-]/g, "").toLowerCase();
-}
-
-function isRunActivityType(type: string | null | undefined) {
-  if (typeof type !== "string" || type.length === 0) {
-    return false;
-  }
-  return RUN_ACTIVITY_TYPES.has(normalizeActivityType(type));
-}
-
-function computePaceSecPerKm({
-  elapsedSeconds,
-  distanceMeters,
-}: {
-  elapsedSeconds: number;
-  distanceMeters: number;
-}) {
-  if (elapsedSeconds <= 0 || distanceMeters <= 0) {
-    return null;
-  }
-  return elapsedSeconds / (distanceMeters / 1000);
-}
-
-function startOfWeekUtc(date: Date, weekStartDay: 0 | 1) {
-  const start = new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
-  const day = start.getUTCDay();
-  const offsetToWeekStart =
-    weekStartDay === 1
-      ? day === 0
-        ? -6
-        : 1 - day
-      : -day;
-  start.setUTCDate(start.getUTCDate() + offsetToWeekStart);
-  start.setUTCHours(0, 0, 0, 0);
-  return start;
-}
-
-function startOfIsoWeekUtc(date: Date) {
-  return startOfWeekUtc(date, 1);
-}
-
-function startOfMonthUtc(date: Date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }
 
 const distanceStreamDataSchema = z.array(z.number().finite());

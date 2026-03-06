@@ -1,135 +1,77 @@
-import { getCurrentSession } from "@/utils/current-session";
-import { formatIntervalsAthleteName, toErrorMessage } from "@/utils/formatters";
-import {
-  createIntervalsServices,
-  mapIntervalsErrorToStatusCode,
-} from "@hyuu/intervals-icu-integration";
+import { formatIntervalsAthleteName } from "@/utils/formatters";
+import { createIntervalsServices } from "@hyuu/intervals-icu-integration";
 import { Hono } from "hono";
-import type { StatusCode } from "hono/utils/http-status";
+import { withSessionAndIntervalsErrorHandling } from "./with-intervals-error-handling";
 
 const app = new Hono();
 const intervalsServices = createIntervalsServices();
 
-app.get("/connections", async (c) => {
-  const session = await getCurrentSession(c.req.raw.headers);
-
-  if (!session) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
+app.get("/connections", withSessionAndIntervalsErrorHandling(async (c, session) => {
   const status = await intervalsServices.getConnectionStatus({
     userId: session.user.id,
   });
   return c.json(status);
-});
+}));
 
-app.post("/connections", async (c) => {
-  const session = await getCurrentSession(c.req.raw.headers);
-
-  if (!session) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
+app.post("/connections", withSessionAndIntervalsErrorHandling(async (c, session) => {
   const athleteId = c.req.query("athleteId") ?? "0";
+  const result = await intervalsServices.connectAthleteAndBootstrapActivities({
+    userId: session.user.id,
+    athleteId,
+  });
 
-  try {
-    const result = await intervalsServices.connectAthleteAndBootstrapActivities(
-      {
-        userId: session.user.id,
-        athleteId,
-      },
-    );
+  return c.json({
+    ok: true,
+    athleteId: result.athlete.id,
+    connected: true,
+    connection: {
+      athleteName: formatIntervalsAthleteName(result.athlete),
+      connectedAt: result.connectedAt.toISOString(),
+    },
+    activitiesFetched: result.eventCount,
+    activitiesSaved: result.savedActivityCount,
+  });
+}));
 
-    return c.json({
-      ok: true,
-      athleteId: result.athlete.id,
-      connected: true,
-      connection: {
-        athleteName: formatIntervalsAthleteName(result.athlete),
-        connectedAt: result.connectedAt.toISOString(),
-      },
-      activitiesFetched: result.eventCount,
-      activitiesSaved: result.savedActivityCount,
-    });
-  } catch (error) {
-    c.status(mapIntervalsErrorToStatusCode(error) as StatusCode);
-    return c.json({ message: toErrorMessage(error) });
-  }
-});
+app.post("/connections/test", withSessionAndIntervalsErrorHandling(async (c, session) => {
+  const result = await intervalsServices.testConnection({
+    userId: session.user.id,
+  });
 
-app.post("/connections/test", async (c) => {
-  const session = await getCurrentSession(c.req.raw.headers);
+  return c.json({
+    ok: true,
+    testedAt: result.testedAt.toISOString(),
+    athlete: {
+      id: result.athlete.id,
+      name: formatIntervalsAthleteName(result.athlete),
+    },
+  });
+}));
 
-  if (!session) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
-  try {
-    const result = await intervalsServices.testConnection({
-      userId: session.user.id,
-    });
-
-    return c.json({
-      ok: true,
-      testedAt: result.testedAt.toISOString(),
-      athlete: {
-        id: result.athlete.id,
-        name: formatIntervalsAthleteName(result.athlete),
-      },
-    });
-  } catch (error) {
-    c.status(mapIntervalsErrorToStatusCode(error) as StatusCode);
-    return c.json({ message: toErrorMessage(error) });
-  }
-});
-
-app.post("/connect", async (c) => {
-  const session = await getCurrentSession(c.req.raw.headers);
-
-  if (!session) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
+app.post("/connect", withSessionAndIntervalsErrorHandling(async (c, session) => {
   const athleteId = c.req.query("athleteId") ?? "0";
+  const result = await intervalsServices.connectAthlete({
+    userId: session.user.id,
+    athleteId,
+  });
 
-  try {
-    const result = await intervalsServices.connectAthlete({
-      userId: session.user.id,
-      athleteId,
-    });
+  return c.json({
+    ok: true,
+    athleteId: result.athlete.id,
+  });
+}));
 
-    return c.json({
-      ok: true,
-      athleteId: result.athlete.id,
-    });
-  } catch (error) {
-    c.status(mapIntervalsErrorToStatusCode(error) as StatusCode);
-    return c.json({ message: toErrorMessage(error) });
-  }
-});
+app.post("/sync", withSessionAndIntervalsErrorHandling(async (c, session) => {
+  const result = await intervalsServices.syncActivitiesIncremental({
+    userId: session.user.id,
+    oldestOverride: c.req.query("oldest"),
+    newestOverride: c.req.query("newest"),
+  });
 
-app.post("/sync", async (c) => {
-  const session = await getCurrentSession(c.req.raw.headers);
-
-  if (!session) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
-  try {
-    const result = await intervalsServices.syncActivitiesIncremental({
-      userId: session.user.id,
-      oldestOverride: c.req.query("oldest"),
-      newestOverride: c.req.query("newest"),
-    });
-
-    return c.json({
-      ok: true,
-      ...result,
-    });
-  } catch (error) {
-    c.status(mapIntervalsErrorToStatusCode(error) as StatusCode);
-    return c.json({ message: toErrorMessage(error) });
-  }
-});
+  return c.json({
+    ok: true,
+    ...result,
+  });
+}));
 
 export default app;

@@ -11,6 +11,7 @@ import { toErrorMessage } from "../../domain/errors/intervals-domain-error";
 import type { IntervalsGateway } from "../../acl/intervals-gateway";
 import type { IntervalsRepository } from "../../persistence/intervals-repository";
 import { buildIncrementalSyncWindow } from "../policies/sync-window-policy";
+import { runSyncWithLifecycle } from "./_shared/sync-log-lifecycle";
 import { fetchAndUpsertActivities } from "./fetch-and-upsert-activities";
 
 const SYNC_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
@@ -58,46 +59,37 @@ export async function syncActivitiesIncremental({
     newestOverride,
   });
 
-  const syncRow = await repository.createSyncLogStarted({
-    userId,
-    intervalsAthleteId: connectedAthleteId,
-    startedAt: now,
-  });
-
-  if (!syncRow) {
-    throw new SyncInitializationError();
-  }
-
   try {
-    const { eventCount, savedActivityCount } = await fetchAndUpsertActivities({
-      userId,
-      athleteId: connectedAthleteId,
-      window,
-      gateway,
+    return await runSyncWithLifecycle({
       repository,
-    });
-
-    await repository.completeSyncLogSuccess({
-      syncLogId: syncRow.id,
+      userId,
       intervalsAthleteId: connectedAthleteId,
-      completedAt: new Date(),
-      fetchedActivityCount: eventCount,
-    });
+      startedAt: now,
+      requireSyncLog: true,
+      onMissingSyncLogError: new SyncInitializationError(),
+      getErrorMessage: toErrorMessage,
+      run: async () => {
+        const { eventCount, savedActivityCount } = await fetchAndUpsertActivities({
+          userId,
+          athleteId: connectedAthleteId,
+          window,
+          gateway,
+          repository,
+        });
 
-    return {
-      athleteId: connectedAthleteId,
-      oldest: window.oldest,
-      newest: window.newest,
-      eventCount,
-      savedActivityCount,
-    };
-  } catch (error) {
-    const errorMessage = toErrorMessage(error);
-    await repository.completeSyncLogFailed({
-      syncLogId: syncRow.id,
-      completedAt: new Date(),
-      errorMessage,
+        return {
+          result: {
+            athleteId: connectedAthleteId,
+            oldest: window.oldest,
+            newest: window.newest,
+            eventCount,
+            savedActivityCount,
+          },
+          fetchedActivityCount: eventCount,
+        };
+      },
     });
+  } catch (error) {
     throw wrapUnknownSyncError(error);
   }
 }

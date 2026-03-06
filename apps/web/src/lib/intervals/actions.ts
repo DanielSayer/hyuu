@@ -1,4 +1,8 @@
-import { env } from "@hyuu/env/web";
+import {
+  requestIntervals,
+  requestIntervalsJson,
+  requestIntervalsNoContent,
+} from "./intervals-client";
 
 export type IntervalsSyncResponse = {
   ok: boolean;
@@ -29,12 +33,7 @@ export type IntervalsTestConnectionResponse = {
 };
 
 export async function getIntervalsConnection() {
-  const response = await fetch(
-    `${env.VITE_SERVER_URL}/api/intervals/connections`,
-    {
-      credentials: "include",
-    },
-  );
+  const response = await requestIntervals("/api/intervals/connections");
 
   if (!response.ok) {
     throw new Error("Failed to load Intervals connection.");
@@ -44,80 +43,25 @@ export async function getIntervalsConnection() {
 }
 
 export async function connectIntervalsConnection() {
-  const response = await fetch(
-    `${env.VITE_SERVER_URL}/api/intervals/connections`,
-    {
-      method: "POST",
-      credentials: "include",
-    },
-  );
-
-  if (!response.ok) {
-    const fallbackMessage = "Failed to connect Intervals.";
-    let message = fallbackMessage;
-
-    try {
-      const json = (await response.json()) as { message?: unknown };
-      if (typeof json.message === "string") {
-        message = json.message;
-      }
-    } catch {
-      // keep fallback message
-    }
-
-    throw new Error(message);
-  }
+  await requestIntervalsNoContent({
+    path: "/api/intervals/connections",
+    method: "POST",
+    fallbackMessage: "Failed to connect Intervals.",
+  });
 }
 
 export async function testIntervalsConnection() {
-  const response = await fetch(
-    `${env.VITE_SERVER_URL}/api/intervals/connections/test`,
-    {
-      method: "POST",
-      credentials: "include",
-    },
-  );
-
-  if (!response.ok) {
-    const fallbackMessage = "Failed to test Intervals connection.";
-    let message = fallbackMessage;
-
-    try {
-      const json = (await response.json()) as { message?: unknown };
-      if (typeof json.message === "string") {
-        message = json.message;
-      }
-    } catch {
-      // keep fallback message
-    }
-
-    throw new Error(message);
-  }
-
-  return (await response.json()) as IntervalsTestConnectionResponse;
+  return requestIntervalsJson<IntervalsTestConnectionResponse>({
+    path: "/api/intervals/connections/test",
+    method: "POST",
+    fallbackMessage: "Failed to test Intervals connection.",
+  });
 }
 
 export async function syncIntervalsActivities() {
-  const response = await fetch(`${env.VITE_SERVER_URL}/api/intervals/sync`, {
+  return requestIntervalsJson<IntervalsSyncResponse>({
+    path: "/api/intervals/sync",
     method: "POST",
-    credentials: "include",
+    fallbackMessage: "Failed to sync Intervals activities.",
   });
-
-  if (!response.ok) {
-    const fallbackMessage = "Failed to sync Intervals activities.";
-    let message = fallbackMessage;
-
-    try {
-      const json = (await response.json()) as { message?: unknown };
-      if (typeof json.message === "string") {
-        message = json.message;
-      }
-    } catch {
-      // keep fallback message
-    }
-
-    throw new Error(message);
-  }
-
-  return (await response.json()) as IntervalsSyncResponse;
 }

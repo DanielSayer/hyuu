@@ -28,11 +28,15 @@ function formatSecondsToMinsPerKm(
   return `${minutes}:${seconds.toString().padStart(2, "0")}${showUnit ? "/km" : ""}`;
 }
 
-function formatPace(distanceMeters: number, durationSeconds: number): string {
+function formatPace(
+  distanceMeters: number,
+  durationSeconds: number,
+  { showUnit }: { showUnit?: boolean } = { showUnit: true },
+): string {
   const paceSecondsPerKm = durationSeconds / (distanceMeters / 1000);
   const m = Math.floor(paceSecondsPerKm / 60);
   const s = Math.floor(paceSecondsPerKm % 60);
-  return `${m}:${String(s).padStart(2, "0")}/km`;
+  return `${m}:${String(s).padStart(2, "0")}${showUnit ? "/km" : ""}`;
 }
 
 export {

@@ -67,7 +67,9 @@ function IntroSlide({ data }: { data: WeeklyWrappedData }) {
         <div>
           <p className="text-card-foreground text-3xl font-bold">
             {data.totals?.avgPaceSecPerKm
-              ? formatPace(1000, data.totals.avgPaceSecPerKm)
+              ? formatPace(1000, data.totals.avgPaceSecPerKm, {
+                  showUnit: false,
+                })
               : "—"}
           </p>
           <p className="text-xs text-zinc-500">/km avg</p>

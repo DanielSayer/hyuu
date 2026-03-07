@@ -1,5 +1,5 @@
 import { formatDistanceToKm } from "@hyuu/utils/distance";
-import { formatPace } from "@hyuu/utils/pace";
+import { formatSecondsToMinsPerKm } from "@hyuu/utils/pace";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 
 function DeltaBadge({
@@ -32,7 +32,7 @@ function DeltaBadge({
         ))}
       {value > 0 ? "+" : ""}
       {unit === "/km"
-        ? formatPace(Math.abs(value), 1000)
+        ? formatSecondsToMinsPerKm(Math.abs(value))
         : unit === "km"
           ? formatDistanceToKm(Math.abs(value))
           : Math.abs(value)}

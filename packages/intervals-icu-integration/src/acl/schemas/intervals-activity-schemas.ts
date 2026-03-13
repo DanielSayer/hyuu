@@ -6,6 +6,7 @@ const toIntOrNull = z.number().int().nullable().optional();
 export const intervalsActivityEventSchema = z
   .object({
     id: z.string().min(1),
+    type: z.string().min(1),
   })
   .loose();
 
@@ -134,14 +135,17 @@ const intervalsMapWeatherSchema = z
   })
   .loose();
 
-export const intervalsActivityMapSchema = z
+const intervalsActivityMapPayloadSchema = z
   .object({
-    bounds: z.array(z.array(z.number())).default([]),
-    latlngs: z.array(intervalsMapLatLngSchema).default([]),
+    bounds: z.array(z.array(z.number())).nullable().optional(),
+    latlngs: z.array(intervalsMapLatLngSchema).nullable().optional(),
     route: intervalsMapRouteSchema.nullable().optional(),
     weather: intervalsMapWeatherSchema.nullable().optional(),
   })
   .loose();
+
+export const intervalsActivityMapSchema =
+  intervalsActivityMapPayloadSchema.nullable();
 
 const intervalsActivityStreamDataSchema = z.union([
   z.array(z.unknown()),

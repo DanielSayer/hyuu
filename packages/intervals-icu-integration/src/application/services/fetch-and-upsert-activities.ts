@@ -1,4 +1,5 @@
 import type { IntervalsGateway } from "../../acl/intervals-gateway";
+import type { IntervalsActivityMap } from "../../domain/models/activity";
 import type { IntervalsRepository } from "../../persistence/intervals-repository";
 import type { SyncWindow } from "../../domain/models/sync-log";
 import {
@@ -28,7 +29,10 @@ export async function fetchAndUpsertActivities({
   repository: IntervalsRepository;
 }) {
   const events = await gateway.fetchActivityEvents(athleteId, window);
-  const activityIds = dedupeActivityIds(events);
+  const runningEvents = events.filter((event) =>
+    event.type.toLowerCase().includes("run"),
+  );
+  const activityIds = dedupeActivityIds(runningEvents);
 
   const activities = [];
   for (const activityId of activityIds) {
@@ -56,18 +60,19 @@ export async function fetchAndUpsertActivities({
     activities.push({
       activityId,
       detail,
-      map,
+      map: normalizeActivityMap(map),
       streams,
       bestEfforts,
       oneKmSplitTimesSeconds,
     });
   }
 
-  const { savedActivityCount, affectedDates } = await repository.upsertActivities({
-    userId,
-    intervalsAthleteId: athleteId,
-    activities,
-  });
+  const { savedActivityCount, affectedDates } =
+    await repository.upsertActivities({
+      userId,
+      intervalsAthleteId: athleteId,
+      activities,
+    });
 
   if (affectedDates.length > 0) {
     await repository.recomputeDashboardRunRollups({
@@ -84,4 +89,18 @@ export async function fetchAndUpsertActivities({
 
 function dedupeActivityIds(events: Array<{ id: string }>) {
   return [...new Set(events.map((event) => event.id))];
+}
+
+function normalizeActivityMap(
+  map: IntervalsActivityMap,
+): IntervalsActivityMap | null {
+  if (map === null || map.bounds === null) {
+    return null;
+  }
+
+  if (!Array.isArray(map.latlngs) || map.latlngs.length === 0) {
+    return null;
+  }
+
+  return map;
 }

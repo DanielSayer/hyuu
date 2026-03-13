@@ -34,7 +34,7 @@ export type IntervalsComputedOneKmSplitTime = {
 export type IntervalsActivityAggregate = {
   activityId: string;
   detail: IntervalsActivityDetail;
-  map: IntervalsActivityMap;
+  map: IntervalsActivityMap | null;
   streams: IntervalsActivityStream[];
   bestEfforts: IntervalsComputedBestEffort[];
   oneKmSplitTimesSeconds: IntervalsComputedOneKmSplitTime[];

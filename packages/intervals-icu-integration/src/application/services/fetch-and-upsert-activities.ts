@@ -48,7 +48,10 @@ export async function fetchAndUpsertActivities({
       requestedStreamTypes.length > 0
         ? await gateway.fetchActivityStreams(activityId, requestedStreamTypes)
         : [];
-    const streamDurationSeconds = detail.elapsed_time ?? detail.moving_time;
+
+    // Whilst users can cheese this by recovering, and intervals.
+    // Streams only measure the time spent in the activity.
+    const streamDurationSeconds = detail.moving_time ?? detail.elapsed_time;
     const bestEfforts = computeBestEffortsFromDistanceStream(
       streams,
       streamDurationSeconds,
